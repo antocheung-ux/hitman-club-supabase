@@ -1,11 +1,10 @@
 /* =====================================================================
-   HITMAN PEKANBARU HASHING CLUB - js/app.js (VERSI 4 - FINAL)
-   Dikunci 1:1 ke skema database asli (2026-08-15)
+   HITMAN PEKANBARU HASHING CLUB - js/app.js (VERSI 5 - FINAL)
+   Fix: cek admin langsung setelah login + anti-deadlock onAuthStateChange
    ===================================================================== */
 (function () {
   'use strict';
 
-  // ===== Ambil client dari config.js =====
   var sb = window.sb;
   if (!sb || !window.supabaseReady) {
     console.error('❌ [app.js] Supabase belum siap');
@@ -15,7 +14,6 @@
 
   console.log('✅ [app.js] Supabase siap! Memulai aplikasi...');
 
-  // ===== Konstanta Storage =====
   var SUPABASE_URL = 'https://awpcrceoxddyltasznht.supabase.co';
   var GALLERY_BUCKET = 'gallery-photos';
   var RUNS_BUCKET = 'run-photos';
@@ -23,7 +21,7 @@
   // ===== Helpers =====
   function buildPublicUrl(bucket, path) {
     if (!path) return '';
-    if (path.startsWith('http')) return path; // sudah URL penuh
+    if (path.startsWith('http')) return path;
     return SUPABASE_URL + '/storage/v1/object/public/' + bucket + '/' + path;
   }
 
@@ -52,6 +50,7 @@
   // ===== State =====
   var currentUser = null;
   var isAdminUser = false;
+  var lastAdminError = '';
 
   // =====================================================================
   // INISIALISASI
@@ -63,7 +62,7 @@
   });
 
   // =====================================================================
-  // AUTH
+  // AUTH (FIX v5)
   // =====================================================================
   async function initAuth() {
     try {
@@ -72,14 +71,20 @@
         currentUser = sess.data.session.user;
         await checkAdmin(currentUser.id);
       }
-      sb.auth.onAuthStateChange(async function (event, session) {
+
+      // Anti-deadlock: semua kerja async dibungkus setTimeout
+      sb.auth.onAuthStateChange(function (event, session) {
         if (event === 'SIGNED_IN' && session) {
-          currentUser = session.user;
-          await checkAdmin(session.user.id);
+          setTimeout(async function () {
+            currentUser = session.user;
+            await checkAdmin(session.user.id);
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
-          currentUser = null;
-          isAdminUser = false;
-          updateUI();
+          setTimeout(function () {
+            currentUser = null;
+            isAdminUser = false;
+            updateUI();
+          }, 0);
         }
       });
     } catch (err) {
@@ -88,14 +93,29 @@
   }
 
   async function checkAdmin(userId) {
+    lastAdminError = '';
     try {
       var res = await sb.from('admin_profiles')
         .select('user_id, role')
         .eq('user_id', userId)
         .maybeSingle();
-      isAdminUser = !res.error && !!res.data;
+
+      if (res.error) {
+        lastAdminError = 'Query admin_profiles gagal: ' + res.error.message;
+        console.error('❌ checkAdmin query error:', res.error.message);
+        isAdminUser = false;
+      } else if (res.data) {
+        isAdminUser = true;
+        console.log('✅ User terverifikasi sebagai ADMIN.');
+      } else {
+        isAdminUser = false;
+        lastAdminError = 'Tidak ada baris untuk user ini di tabel admin_profiles. Jalankan SQL pendaftaran admin.';
+        console.warn('⚠️ User BUKAN admin (tidak ada di admin_profiles).');
+      }
     } catch (e) {
       isAdminUser = false;
+      lastAdminError = e.message;
+      console.error('❌ checkAdmin exception:', e);
     }
     updateUI();
   }
@@ -124,15 +144,31 @@
     var password = document.getElementById('login-password').value;
     var errDiv = document.getElementById('login-error');
     var btn = document.getElementById('btn-login-submit');
+
     errDiv?.classList.add('hidden');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...'; }
+
     try {
       var res = await sb.auth.signInWithPassword({ email: email, password: password });
       if (res.error) throw res.error;
+
+      // FIX v5: cek admin LANGSUNG di sini, tidak menunggu event
+      currentUser = res.data.user;
+      await checkAdmin(currentUser.id);
+
       document.getElementById('login-modal').classList.remove('active');
       document.getElementById('form-login').reset();
-      alert('Login berhasil!');
+
+      if (isAdminUser) {
+        alert('Login berhasil! Selamat datang, Admin.');
+        setTimeout(function () {
+          document.getElementById('section-members')?.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+      } else {
+        alert('Login berhasil, tetapi akun ini BELUM terdaftar sebagai admin.\n\nDetail: ' + lastAdminError + '\n\nSolusi: jalankan SQL pendaftaran admin di Supabase SQL Editor.');
+      }
     } catch (err) {
+      console.error('❌ Login gagal:', err);
       if (errDiv) {
         errDiv.classList.remove('hidden');
         errDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>' + escapeHtml(err.message || 'Login gagal');
@@ -160,7 +196,6 @@
   function bindEvents() {
     document.getElementById('form-login')?.addEventListener('submit', handleLogin);
 
-    // Upload Excel
     var upBtn = document.getElementById('btn-upload-excel');
     var upInput = document.getElementById('excel-file-input');
     if (upBtn && upInput) {
@@ -168,14 +203,11 @@
       upInput.addEventListener('change', handleExcelUpload);
     }
 
-    // Export
     attachExport('member');
     attachExport('kas');
 
-    // Registrasi run
     document.getElementById('form-run-registration')?.addEventListener('submit', handleRunReg);
 
-    // Rekap WA
     document.getElementById('btn-rekap-daftar')?.addEventListener('click', function () { rekapWA('daftar'); });
     document.getElementById('btn-rekap-hadir')?.addEventListener('click', function () { rekapWA('hadir'); });
     document.getElementById('btn-copy-rekap')?.addEventListener('click', function () {
@@ -183,10 +215,8 @@
       navigator.clipboard.writeText(t).then(function () { alert('Rekap di-copy!'); });
     });
 
-    // Scanner
     document.getElementById('btn-open-scanner')?.addEventListener('click', openScanner);
 
-    // Simpan edit member
     document.getElementById('form-edit-member')?.addEventListener('submit', saveEditMember);
   }
 
@@ -325,7 +355,7 @@
     }
   }
 
-  // ---------- KAMUS HASH ----------
+  // ---------- KAMUS ----------
   async function loadKamus() {
     var c = document.getElementById('kamus-container');
     if (!c) return;
@@ -348,13 +378,11 @@
             + '</div>';
         }).join('')
         + '</dl>';
-    } catch (err) {
-      console.error('loadKamus:', err);
-    }
+    } catch (err) { console.error('loadKamus:', err); }
   }
 
   // =====================================================================
-  // MANAJEMEN MEMBER (UPLOAD + EDIT + EXPORT)
+  // MANAJEMEN MEMBER
   // =====================================================================
   async function handleExcelUpload(e) {
     var file = e.target.files[0];
@@ -387,7 +415,6 @@
         }).filter(function (r) { return r.nama; });
         if (!clean.length) { alert('File kosong/format salah!'); return; }
 
-        // Cek duplikasi nama
         var names = clean.map(function (r) { return r.nama; });
         var dupRes = await sb.from('people').select('nama').in('nama', names);
         if (dupRes.data && dupRes.data.length > 0) {
@@ -528,30 +555,24 @@
   }
 
   // =====================================================================
-  // KAS TRANSAKSI (SOFT DELETE + CASCADE IURAN)
+  // KAS (SOFT DELETE + CASCADE)
   // =====================================================================
   async function deleteKasTransaction(id) {
     if (!confirm('Hapus transaksi ini? Iuran terkait akan otomatis kembali ke "Belum Bayar".')) return;
     try {
-      // 1) Ambil transaksi untuk dapat payment_id
       var tr = await sb.from('kas_transactions').select('id, payment_id').eq('id', id).maybeSingle();
       if (tr.error || !tr.data) throw new Error('Transaksi tidak ditemukan');
-
       var paymentId = tr.data.payment_id;
 
-      // 2) Soft delete kas_transactions (set deleted_at)
       var softDel = await sb.from('kas_transactions')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
       if (softDel.error) throw softDel.error;
 
-      // 3) Jika ada payment_id, cascade ke iuran_bills
       if (paymentId) {
-        // Cari semua bill_id lewat payment_items
         var items = await sb.from('payment_items').select('bill_id').eq('payment_id', paymentId);
         if (items.data && items.data.length > 0) {
           var billIds = items.data.map(function (i) { return i.bill_id; });
-          // Reset iuran_bills ke unpaid
           await sb.from('iuran_bills')
             .update({
               status: 'unpaid',
@@ -561,7 +582,6 @@
             })
             .in('id', billIds);
         }
-        // Reset payment status
         await sb.from('payments')
           .update({
             status: 'cancelled',
@@ -597,12 +617,10 @@
       }
       c.innerHTML = data.map(function (m) {
         var d = new Date(m.tanggal_lahir);
-        var tgl = d.getDate();
-        var bln = d.toLocaleDateString('id-ID', { month: 'long' });
         return '<div class="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border border-pink-200 flex items-center justify-between">'
           + '<div class="flex items-center gap-3">'
           + '<div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center"><i class="fas fa-birthday-cake text-pink-500"></i></div>'
-          + '<div><h5 class="font-bold">' + escapeHtml(m.nama) + '</h5><p class="text-sm text-gray-600">' + tgl + ' ' + bln + '</p></div>'
+          + '<div><h5 class="font-bold">' + escapeHtml(m.nama) + '</h5><p class="text-sm text-gray-600">' + d.getDate() + ' ' + d.toLocaleDateString('id-ID', { month: 'long' }) + '</p></div>'
           + '</div>'
           + '<button onclick="sendWish(\'' + escapeHtml(m.nama).replace(/'/g, "\\'") + '\',\'' + escapeHtml(m.phone || '') + '\')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm"><i class="fab fa-whatsapp mr-1"></i>Ucapan</button>'
           + '</div>';
@@ -671,7 +689,7 @@
         return;
       }
       tb.innerHTML = data.map(function (l) {
-        var detail = (l.entity_type || '') + (l.entity_id ? '#' + l.entity_id : '');
+        var detail = (l.entity_type || '') + (l.entity_id ? ' #' + l.entity_id : '');
         return '<tr class="border-b hover:bg-gray-50">'
           + '<td class="px-3 py-2 text-xs">' + new Date(l.created_at).toLocaleString('id-ID') + '</td>'
           + '<td class="px-3 py-2 text-sm font-semibold">' + escapeHtml(l.action || '-') + '</td>'
@@ -706,17 +724,13 @@
 
   async function processAttendance(qrToken) {
     try {
-      // 1) Scan log entry
       await sb.from('scan_logs').insert({
-        qr_token: qrToken,
-        scan_date: todayISO(),
-        result: 'started',
-        message: 'scan initiated'
+        qr_token: qrToken, scan_date: todayISO(),
+        result: 'started', message: 'scan initiated'
       });
 
-      // 2) Lookup member
       var mRes = await sb.from('people')
-        .select('id, nama, status_member')
+        .select('id, nama, attendance_count')
         .eq('qr_token', qrToken)
         .maybeSingle();
 
@@ -730,7 +744,6 @@
       }
       var member = mRes.data;
 
-      // 3) Cek duplikat absen hari ini
       var dupCheck = await sb.from('attendances')
         .select('id')
         .eq('person_id', member.id)
@@ -738,15 +751,14 @@
         .limit(1);
 
       if (dupCheck.data && dupCheck.data.length > 0) {
-        alert(member.nama + ' sudah absen hari ini!');
         await sb.from('scan_logs').insert({
           qr_token: qrToken, scan_date: todayISO(),
           person_id: member.id, result: 'duplicate', message: 'already scanned today'
         });
+        alert(member.nama + ' sudah absen hari ini!');
         return;
       }
 
-      // 4) Insert attendance
       var ins = await sb.from('attendances').insert({
         person_id: member.id,
         tanggal: todayISO(),
@@ -755,7 +767,6 @@
       });
       if (ins.error) throw ins.error;
 
-      // 5) Increment counter
       await sb.from('people')
         .update({ attendance_count: (member.attendance_count || 0) + 1 })
         .eq('id', member.id);
@@ -780,7 +791,7 @@
   window.closeScannerModal = closeScanner;
 
   // =====================================================================
-  // ID CARD
+  // ID CARD & LIGHTBOX
   // =====================================================================
   async function downloadIDCard(elId, name) {
     var el = document.getElementById(elId);
@@ -793,9 +804,6 @@
   }
   window.downloadIDCard = downloadIDCard;
 
-  // =====================================================================
-  // LIGHTBOX
-  // =====================================================================
   window.openLightbox = function (url, cap) {
     document.getElementById('lightbox-img').src = url;
     document.getElementById('lightbox-caption').innerText = cap || '';
