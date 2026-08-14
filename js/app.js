@@ -1,22 +1,20 @@
 /**
- * Hitman Pekanbaru Hashing Club - Main Application Logic (FINAL v4)
+ * Hitman Pekanbaru Hashing Club - Main Application Logic (MUTLAK FINAL)
  * File: js/app.js
- * Fix: Menggunakan window.supabaseClient untuk menghindari conflicts
  */
 
 // ==========================================
-// ALIAS SUPABASE CLIENT
+// AMBIL CLIENT DARI WINDOW (Mencegah bentrok const)
 // ==========================================
-// Ambil dari window.supabaseClient yang dibuat di config.js
 const supabase = window.supabaseClient;
 
-// Verifikasi
 if (!supabase) {
-    console.error('❌ FATAL: supabase client tidak tersedia. Cek config.js');
-    alert('Error: Supabase tidak terinisialisasi. Buka Console (F12) untuk detail.');
+    console.error('❌ [app.js] Gagal mengambil supabase client dari window. Cek config.js Anda.');
+    alert('Error Koneksi Database. Buka Console (F12) untuk detail.');
 } else if (!supabase.auth) {
-    console.error('❌ FATAL: supabase.auth tidak tersedia');
-    alert('Error: Supabase Auth tidak tersedia. Cek anon key di config.js');
+    console.error('❌ [app.js] supabase.auth tidak tersedia. Cek Anon Key di config.js.');
+} else {
+    console.log('✅ [app.js] Supabase client siap digunakan di app.js!');
 }
 
 // ==========================================
@@ -29,20 +27,18 @@ let isAdminUser = false;
 // INISIALISASI
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Hitman Hash App FINAL v4 Starting...');
+    console.log('🚀 [app.js] Memulai aplikasi...');
 
-    if (!supabase) {
-        console.error('❌ App stopped: supabase not available');
+    if (!supabase || !supabase.auth) {
+        console.error('❌ [app.js] Aplikasi dihentikan karena Supabase tidak siap.');
         return;
     }
-
-    console.log('✅ Supabase client ready. Auth:', !!supabase.auth);
 
     await initAuthListener();
     initEventListeners();
     await loadPublicData();
 
-    console.log('✅ App initialization complete.');
+    console.log('✅ [app.js] Inisialisasi aplikasi selesai.');
 });
 
 // ==========================================
@@ -53,11 +49,11 @@ async function initAuthListener() {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
-            console.log('✅ Session found:', session.user.email);
+            console.log('✅ Session ditemukan:', session.user.email);
             currentUser = session.user;
             await checkAdminRole(session.user.id);
         } else {
-            console.log('ℹ️ No active session.');
+            console.log('ℹ️ Belum ada session login.');
         }
 
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -88,10 +84,10 @@ async function checkAdminRole(userId) {
             console.warn('⚠️ Admin check error:', error.message);
             isAdminUser = false;
         } else if (data) {
-            console.log('✅ User is admin.');
+            console.log('✅ User adalah Admin.');
             isAdminUser = true;
         } else {
-            console.warn('⚠️ User is NOT in admin_profiles.');
+            console.warn('⚠️ User BUKAN Admin (tidak ada di admin_profiles).');
             isAdminUser = false;
         }
     } catch (err) {
@@ -139,29 +135,22 @@ async function handleLogin(e) {
     }
 
     try {
-        console.log('🔐 Attempting login for:', email);
-
-        if (!supabase.auth || typeof supabase.auth.signInWithPassword !== 'function') {
-            throw new Error('Supabase Auth tidak tersedia. Cek config.js');
-        }
+        console.log('🔐 Mencoba login:', email);
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password
         });
 
-        if (error) {
-            console.error('❌ Login error:', error.message);
-            throw error;
-        }
+        if (error) throw error;
 
-        console.log('✅ Login successful:', data.user.email);
+        console.log('✅ Login berhasil:', data.user.email);
         closeLoginModal();
         document.getElementById('form-login').reset();
         alert('Login berhasil! Selamat datang, Admin.');
 
     } catch (error) {
-        console.error('❌ Login failed:', error);
+        console.error('❌ Login gagal:', error);
         if (errorDiv) {
             errorDiv.classList.remove('hidden');
             errorDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${error.message || 'Email atau password salah.'}`;
@@ -233,27 +222,27 @@ function initEventListeners() {
 // LOAD DATA
 // ==========================================
 async function loadPublicData() {
-    console.log('📦 Loading public data...');
+    console.log('📦 Memuat data publik (Jadwal, Galeri, Kamus)...');
     await Promise.allSettled([
         loadFutureHares(),
         lockRunRegistration(),
         loadGallery(),
         loadKamusHash()
     ]);
-    console.log('✅ Public data loaded.');
+    console.log('✅ Data publik selesai dimuat.');
 }
 
 async function loadAdminData() {
-    console.log('📦 Loading admin data...');
+    console.log('📦 Memuat data admin (Ultah, Logs)...');
     await Promise.allSettled([
         loadUltahMembers(),
         loadLogs()
     ]);
-    console.log('✅ Admin data loaded.');
+    console.log('✅ Data admin selesai dimuat.');
 }
 
 // ==========================================
-// JADWAL RUN
+// FITUR-FITUR
 // ==========================================
 async function loadFutureHares() {
     const container = document.getElementById('run-list-container');
@@ -261,16 +250,10 @@ async function loadFutureHares() {
 
     try {
         const today = new Date().toISOString().split('T')[0];
-        const { data, error } = await supabase
-            .from('runs')
-            .select('*')
-            .gte('date', today)
-            .order('date', { ascending: true })
-            .limit(5);
+        const { data, error } = await supabase.from('runs').select('*').gte('date', today).order('date', { ascending: true }).limit(5);
 
         if (error) {
-            console.error('❌ loadFutureHares error:', error);
-            container.innerHTML = `<p class="text-red-500 col-span-2">Gagal memuat: ${error.message}</p>`;
+            container.innerHTML = `<p class="text-red-500 col-span-2">Error: ${error.message}</p>`;
             return;
         }
 
@@ -279,7 +262,6 @@ async function loadFutureHares() {
             return;
         }
 
-        console.log(`✅ Loaded ${data.length} runs.`);
         container.innerHTML = data.map(run => `
             <div class="bg-hash-light p-4 rounded-lg border border-green-200 shadow-sm hover:shadow-md transition">
                 <div class="flex justify-between items-start mb-2">
@@ -291,9 +273,7 @@ async function loadFutureHares() {
                 <p class="text-sm text-gray-600"><i class="fas fa-user mr-2"></i> Hare: ${run.hare_name || 'TBA'}</p>
             </div>
         `).join('');
-    } catch (err) {
-        console.error('❌ loadFutureHares exception:', err);
-    }
+    } catch (err) { console.error(err); }
 }
 
 async function lockRunRegistration() {
@@ -302,13 +282,7 @@ async function lockRunRegistration() {
 
     try {
         const today = new Date().toISOString().split('T')[0];
-        const { data: nextRun, error } = await supabase
-            .from('runs')
-            .select('id, name, date')
-            .gte('date', today)
-            .order('date', { ascending: true })
-            .limit(1)
-            .maybeSingle();
+        const { data: nextRun, error } = await supabase.from('runs').select('id, name, date').gte('date', today).order('date', { ascending: true }).limit(1).maybeSingle();
 
         if (error || !nextRun) {
             selectDropdown.innerHTML = '<option value="">Tidak ada run terdekat</option>';
@@ -319,9 +293,7 @@ async function lockRunRegistration() {
         selectDropdown.innerHTML = `<option value="${nextRun.id}" selected>${nextRun.name} - ${formattedDate}</option>`;
         selectDropdown.disabled = true;
         selectDropdown.classList.add('bg-gray-100', 'cursor-not-allowed');
-    } catch (err) {
-        console.error('❌ lockRunRegistration error:', err);
-    }
+    } catch (err) { console.error(err); }
 }
 
 async function handleRunRegistration(e) {
@@ -334,9 +306,7 @@ async function handleRunRegistration(e) {
     if (isDup) return;
 
     const { error } = await supabase.from('run_registrations').insert({
-        run_id: runId,
-        participant_name: name,
-        registered_at: new Date().toISOString()
+        run_id: runId, participant_name: name, registered_at: new Date().toISOString()
     });
 
     if (error) alert('Gagal daftar: ' + error.message);
@@ -346,42 +316,23 @@ async function handleRunRegistration(e) {
 async function checkDuplicateNames(namesToCheck) {
     if (!namesToCheck || namesToCheck.length === 0) return false;
     try {
-        const { data, error } = await supabase
-            .from('people')
-            .select('name')
-            .in('name', namesToCheck);
-
+        const { data, error } = await supabase.from('people').select('name').in('name', namesToCheck);
         if (error) return false;
         if (data && data.length > 0) {
-            const dups = data.map(m => m.name).join(', ');
-            alert(`Nama ${dups} sudah terdaftar.`);
+            alert(`Nama ${data.map(m => m.name).join(', ')} sudah terdaftar.`);
             return true;
         }
         return false;
-    } catch (err) {
-        return false;
-    }
+    } catch (err) { return false; }
 }
 
 async function loadGallery() {
     const container = document.getElementById('gallery-container');
     if (!container) return;
-
     try {
-        const { data, error } = await supabase
-            .from('gallery')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(12);
-
-        if (error) {
-            container.innerHTML = `<p class="text-red-500 col-span-full">Gagal: ${error.message}</p>`;
-            return;
-        }
-        if (!data || data.length === 0) {
-            container.innerHTML = `<p class="text-gray-500 col-span-full text-center py-8">Belum ada foto.</p>`;
-            return;
-        }
+        const { data, error } = await supabase.from('gallery').select('*').order('created_at', { ascending: false }).limit(12);
+        if (error) { container.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`; return; }
+        if (!data || data.length === 0) { container.innerHTML = `<p class="text-gray-500 col-span-full text-center py-8">Belum ada foto.</p>`; return; }
 
         container.innerHTML = data.map(img => `
             <div class="gallery-item bg-white rounded-lg overflow-hidden shadow-md" onclick="openLightbox('${img.image_url}', '${(img.caption || '').replace(/'/g, "\\'")}')">
@@ -389,40 +340,23 @@ async function loadGallery() {
                 <div class="p-2 text-center text-sm text-gray-600 truncate">${img.caption || 'Tanpa Judul'}</div>
             </div>
         `).join('');
-    } catch (err) {
-        console.error('❌ loadGallery error:', err);
-    }
+    } catch (err) { console.error(err); }
 }
 
 async function loadKamusHash() {
     const container = document.getElementById('kamus-container');
     if (!container) return;
-
     try {
-        const { data, error } = await supabase
-            .from('kamus_hash')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (error) {
-            container.innerHTML = `<p class="text-red-500">Gagal: ${error.message}</p>`;
-            return;
-        }
-        if (data && data.length > 0) {
-            container.innerHTML = `<div class="prose max-w-none">${data[0].content}</div>`;
-        } else {
-            container.innerHTML = `<p class="text-gray-500 text-center py-8">Belum ada konten.</p>`;
-        }
-    } catch (err) {
-        console.error('❌ loadKamusHash error:', err);
-    }
+        const { data, error } = await supabase.from('kamus_hash').select('*').order('created_at', { ascending: false }).limit(1);
+        if (error) { container.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`; return; }
+        if (data && data.length > 0) container.innerHTML = `<div class="prose max-w-none">${data[0].content}</div>`;
+        else container.innerHTML = `<p class="text-gray-500 text-center py-8">Belum ada konten.</p>`;
+    } catch (err) { console.error(err); }
 }
 
 async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
@@ -430,31 +364,17 @@ async function handleExcelUpload(event) {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheet = workbook.Sheets[workbook.SheetsNames[0]];
             const rawJson = XLSX.utils.sheet_to_json(sheet);
-
             const cleanData = rawJson.map(row => {
                 const lr = Object.keys(row).reduce((a, k) => { a[k.toLowerCase().replace(/\s/g, '_')] = row[k]; return a; }, {});
-                return {
-                    name: lr.nama || lr.name || '',
-                    tanggal_lahir: lr.tanggal_lahir || lr.tgl_lahir || null,
-                    size: lr.size || lr.ukuran_baju || lr.ukuran || 'L',
-                    phone: lr.phone || lr.no_hp || lr.hp || '',
-                    type: 'member',
-                    qr_token: generateToken()
-                };
+                return { name: lr.nama || lr.name || '', tanggal_lahir: lr.tanggal_lahir || lr.tgl_lahir || null, size: lr.size || lr.ukuran || 'L', phone: lr.phone || lr.no_hp || '', type: 'member', qr_token: generateToken() };
             }).filter(r => r.name !== '');
-
-            if (cleanData.length === 0) return alert('File kosong atau format salah!');
-
-            const isDup = await checkDuplicateNames(cleanData.map(r => r.name));
-            if (isDup) { event.target.value = ''; return; }
-
+            if (cleanData.length === 0) return alert('File kosong/format salah!');
+            if (await checkDuplicateNames(cleanData.map(r => r.name))) return;
             const { data: inserted, error } = await supabase.from('people').insert(cleanData).select();
             if (error) throw error;
             alert(`Berhasil upload ${inserted.length} member!`);
             location.reload();
-        } catch (err) {
-            alert('Gagal upload: ' + err.message);
-        }
+        } catch (err) { alert('Gagal: ' + err.message); }
     };
     reader.readAsArrayBuffer(file);
 }
@@ -468,35 +388,21 @@ function attachExportListeners(type) {
 
 async function exportData(type, format) {
     let data = [], title = 'Data';
-    if (type === 'member') {
-        const r = await supabase.from('people').select('*').order('name');
-        data = r.data || []; title = 'Database Member Hitman Hash';
-    } else if (type === 'kas') {
-        const r = await supabase.from('kas_transactions').select('*').order('tanggal', { ascending: false });
-        data = r.data || []; title = 'Laporan Kas Bank Hitman Hash';
-    }
+    if (type === 'member') { const r = await supabase.from('people').select('*').order('name'); data = r.data || []; title = 'Database_Member'; }
+    else if (type === 'kas') { const r = await supabase.from('kas_transactions').select('*').order('tanggal', { ascending: false }); data = r.data || []; title = 'Laporan_Kas'; }
     if (!data.length) return alert('Tidak ada data.');
-
     if (format === 'excel') {
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, type);
-        XLSX.writeFile(wb, `${title.replace(/\s/g, '_')}.xlsx`);
+        const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, type); XLSX.writeFile(wb, `${title}.xlsx`);
     } else {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text(title, 14, 15);
-        const cols = Object.keys(data[0]);
-        doc.autoTable({ head: [cols], body: data.map(r => cols.map(c => r[c] || '-')), startY: 25, styles: { fontSize: 8 } });
-        doc.save(`${title.replace(/\s/g, '_')}.pdf`);
+        const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.text(title, 14, 15);
+        const cols = Object.keys(data[0]); doc.autoTable({ head: [cols], body: data.map(r => cols.map(c => r[c] || '-')), startY: 25, styles: { fontSize: 8 } }); doc.save(`${title}.pdf`);
     }
 }
 
 async function deleteKasTransaction(id) {
-    if (!confirm('Hapus transaksi? Iuran akan kembali ke Belum Bayar.')) return;
+    if (!confirm('Hapus transaksi?')) return;
     const { error } = await supabase.from('kas_transactions').delete().eq('id', id);
-    if (error) alert('Gagal: ' + error.message);
-    else alert('Dihapus. Iuran otomatis terupdate.');
+    if (error) alert('Gagal: ' + error.message); else alert('Dihapus.');
 }
 
 async function loadUltahMembers() {
@@ -504,111 +410,67 @@ async function loadUltahMembers() {
     if (!container) return;
     try {
         const curMonth = new Date().getMonth() + 1;
-        const { data, error } = await supabase.from('people').select('name, tanggal_lahir, phone').not('tanggal_lahir', 'is', null);
-        if (error) return;
-
+        const { data } = await supabase.from('people').select('name, tanggal_lahir, phone').not('tanggal_lahir', 'is', null);
         const ultah = (data || []).filter(m => m.tanggal_lahir && new Date(m.tanggal_lahir).getMonth() + 1 === curMonth);
-        if (!ultah.length) {
-            container.innerHTML = `<p class="text-gray-500 col-span-2 text-center py-8">Tidak ada ultah bulan ini.</p>`;
-            return;
-        }
+        if (!ultah.length) { container.innerHTML = `<p class="text-gray-500 col-span-2 text-center py-8">Tidak ada ultah.</p>`; return; }
         container.innerHTML = ultah.map(m => `
             <div class="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border border-pink-200 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center"><i class="fas fa-birthday-cake text-pink-500"></i></div>
-                    <div><h5 class="font-bold">${m.name}</h5><p class="text-sm text-gray-600">${new Date(m.tanggal_lahir).getDate()} ${new Date(m.tanggal_lahir).toLocaleDateString('id-ID', { month: 'long' })}</p></div>
-                </div>
+                <div class="flex items-center gap-3"><div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center"><i class="fas fa-birthday-cake text-pink-500"></i></div><div><h5 class="font-bold">${m.name}</h5><p class="text-sm text-gray-600">${new Date(m.tanggal_lahir).getDate()} ${new Date(m.tanggal_lahir).toLocaleDateString('id-ID', { month: 'long' })}</p></div></div>
                 <button onclick="sendWishWhatsApp('${m.name}','${m.phone}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm"><i class="fab fa-whatsapp mr-1"></i> Ucapan</button>
-            </div>
-        `).join('');
+            </div>`).join('');
     } catch (err) { console.error(err); }
 }
 
-function sendWishWhatsApp(name, phone) {
-    const msg = `Selamat Ulang Tahun ${name}! 🎂🎉 On On! - Hitman Pekanbaru`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-}
+function sendWishWhatsApp(name, phone) { window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Selamat Ulang Tahun ${name}! 🎂 On On!`)}`, '_blank'); }
 
 async function generateRekapWA(type) {
-    const rc = document.getElementById('rekap-result');
-    const rt = document.getElementById('rekap-text');
-    if (!rc || !rt) return;
-    rc.classList.remove('hidden');
-    rt.innerText = 'Memuat...';
-
+    const rc = document.getElementById('rekap-result'); const rt = document.getElementById('rekap-text');
+    if (!rc || !rt) return; rc.classList.remove('hidden'); rt.innerText = 'Memuat...';
     try {
         const today = new Date().toISOString().split('T')[0];
         const { data: run } = await supabase.from('runs').select('id,name,date').gte('date', today).order('date').limit(1).maybeSingle();
-        if (!run) { rt.innerText = 'Tidak ada run terdekat.'; return; }
-
+        if (!run) { rt.innerText = 'Tidak ada run.'; return; }
         let msg = `*REKAP ${type.toUpperCase()} RUN*\n*${run.name}*\n${new Date(run.date).toLocaleDateString('id-ID')}\n\n`;
-
         if (type === 'daftar') {
             const { data: regs } = await supabase.from('run_registrations').select('participant_name').eq('run_id', run.id);
-            if (regs?.length) { msg += `Total: ${regs.length}\n${regs.map((r, i) => `${i + 1}. ${r.participant_name}`).join('\n')}`; }
-            else msg += 'Belum ada pendaftar.';
+            msg += regs?.length ? `Total: ${regs.length}\n${regs.map((r, i) => `${i+1}. ${r.participant_name}`).join('\n')}` : 'Belum ada.';
         } else {
             const { data: att } = await supabase.from('attendances').select('people(name)').eq('scan_date', run.date);
-            if (att?.length) { msg += `Total: ${att.length}\n${att.map((a, i) => `${i + 1}. ${a.people?.name || '?'}`).join('\n')}`; }
-            else msg += 'Belum ada kehadiran.';
+            msg += att?.length ? `Total: ${att.length}\n${att.map((a, i) => `${i+1}. ${a.people?.name||'?'}`).join('\n')}` : 'Belum ada.';
         }
         rt.innerText = msg;
     } catch (err) { rt.innerText = 'Error: ' + err.message; }
 }
 
 async function loadLogs() {
-    const tb = document.getElementById('logs-table-body');
-    if (!tb) return;
+    const tb = document.getElementById('logs-table-body'); if (!tb) return;
     try {
         const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(20);
         if (error) { tb.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">${error.message}</td></tr>`; return; }
         if (!data?.length) { tb.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Belum ada log.</td></tr>`; return; }
-        tb.innerHTML = data.map(l => `<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2">${new Date(l.created_at).toLocaleString('id-ID')}</td><td class="px-4 py-2 font-semibold">${l.action || '-'}</td><td class="px-4 py-2">${l.user_email || '-'}</td><td class="px-4 py-2">${l.details || '-'}</td></tr>`).join('');
+        tb.innerHTML = data.map(l => `<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2">${new Date(l.created_at).toLocaleString('id-ID')}</td><td class="px-4 py-2 font-semibold">${l.action||'-'}</td><td class="px-4 py-2">${l.user_email||'-'}</td><td class="px-4 py-2">${l.details||'-'}</td></tr>`).join('');
     } catch (err) { console.error(err); }
 }
 
 let html5QrcodeScanner = null;
-
 function initQRScanner() {
-    const el = document.getElementById('qr-reader');
-    if (!el) return;
+    const el = document.getElementById('qr-reader'); if (!el) return;
     if (html5QrcodeScanner) html5QrcodeScanner.clear();
     html5QrcodeScanner = new Html5Qrcode("qr-reader");
     html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
-        async (qr) => { await processAttendance(qr); html5QrcodeScanner.stop().catch(()=>{}); },
-        () => {}
+        async (qr) => { await processAttendance(qr); html5QrcodeScanner.stop().catch(()=>{}); }, () => {}
     ).catch(err => alert('Gagal akses kamera: ' + err));
 }
-
 async function processAttendance(qrToken) {
     const { data: member } = await supabase.from('people').select('id,name').eq('qr_token', qrToken).maybeSingle();
     if (!member) return alert('QR tidak valid!');
-
     const { error } = await supabase.from('attendances').insert({ people_id: member.id, scan_date: new Date().toISOString().split('T')[0] });
-    if (error) {
-        if (error.code === '23505') alert(`${member.name} sudah absen hari ini!`);
-        else alert('Gagal: ' + error.message);
-    } else alert(`Absensi berhasil: ${member.name}`);
+    if (error) alert(error.code === '23505' ? `${member.name} sudah absen!` : 'Gagal: ' + error.message);
+    else alert(`Absensi berhasil: ${member.name}`);
 }
-
-function closeScannerModal() {
-    document.getElementById('scanner-modal')?.classList.remove('active');
-    html5QrcodeScanner?.stop().catch(() => {});
-}
-
-async function downloadIDCard(elId, name) {
-    const el = document.getElementById(elId);
-    if (!el) return;
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true });
-    const a = document.createElement('a');
-    a.download = `ID_${name}.png`;
-    a.href = canvas.toDataURL();
-    a.click();
-}
-
-function generateToken() {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
+function closeScannerModal() { document.getElementById('scanner-modal')?.classList.remove('active'); html5QrcodeScanner?.stop().catch(()=>{}); }
+async function downloadIDCard(elId, name) { const el = document.getElementById(elId); if (!el) return; const canvas = await html2canvas(el, { scale: 2, useCORS: true }); const a = document.createElement('a'); a.download = `ID_${name}.png`; a.href = canvas.toDataURL(); a.click(); }
+function generateToken() { return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15); }
 
 window.logoutAdmin = logoutAdmin;
 window.isAdminLoggedIn = isAdminLoggedIn;
