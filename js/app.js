@@ -1,5 +1,6 @@
 /* =====================================================================
-   HITMAN PEKANBARU HASHING CLUB - js/app.js (VERSI 6 - FINAL)
+   HITMAN PEKANBARU HASHING CLUB - js/app.js (VERSI 7 - FINAL)
+   Perubahan dari v6: HANYA format rekapWA() sesuai template klub.
    ===================================================================== */
 (function () {
   'use strict';
@@ -167,7 +168,6 @@
 
     document.getElementById('btn-open-scanner')?.addEventListener('click', openScanner);
 
-    // Default tanggal kas = hari ini
     var kt = document.getElementById('kas-tanggal');
     if (kt) { kt.value = todayISO(); kt.max = todayISO(); }
   }
@@ -180,7 +180,7 @@
     await Promise.allSettled([loadMembersTable(), loadKas(), loadUltah(), loadLogs()]);
   }
 
-  // ---------- RUN TERDEKAT (1 card) ----------
+  // ---------- RUN TERDEKAT ----------
   async function loadNearestRun() {
     var c = document.getElementById('run-list-container');
     if (!c) return;
@@ -206,7 +206,7 @@
     }
   }
 
-  // ---------- JADWAL HARE (semua mendatang) ----------
+  // ---------- JADWAL HARE ----------
   async function loadHareList() {
     var c = document.getElementById('hare-list-container');
     if (!c) return;
@@ -243,7 +243,7 @@
       + '</div>';
   }
 
-  // ---------- DETAIL RUN (modal besar + daftar) ----------
+  // ---------- DETAIL RUN ----------
   async function openRunDetail(id) {
     try {
       var res = await sb.from('runs').select('*').eq('id', id).maybeSingle();
@@ -258,12 +258,10 @@
       document.getElementById('rd-location').innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>' + escapeHtml(r.lokasi || 'TBD');
       document.getElementById('rd-desc').innerText = r.deskripsi || '';
 
-      // Kunci pendaftaran ke run terdekat
       var isNearest = (nearestRunId === r.id);
       document.getElementById('rd-reg-wrap').classList.toggle('hidden', !isNearest);
       document.getElementById('rd-lock-note').classList.toggle('hidden', isNearest);
 
-      // Reset form
       document.getElementById('form-run-registration').reset();
       document.getElementById('rd-single-wrap').classList.remove('hidden');
       document.getElementById('rd-group-wrap').classList.add('hidden');
@@ -278,7 +276,7 @@
   }
   window.closeRunDetail = closeRunDetail;
 
-  // ---------- DAFTAR RUN (single / rombongan) ----------
+  // ---------- DAFTAR RUN ----------
   async function handleRunReg(e) {
     e.preventDefault();
     if (!detailRunId) { alert('Pilih run terlebih dahulu'); return; }
@@ -294,7 +292,6 @@
     }
     if (!names.length) { alert('Isi nama peserta terlebih dahulu!'); return; }
 
-    // Duplikat dalam batch
     var seen = {};
     var dupsInBatch = [];
     names.forEach(function (n) {
@@ -307,7 +304,6 @@
       return;
     }
 
-    // Duplikat di database
     try {
       var chk = await sb.from('run_registrations').select('nama').eq('run_id', detailRunId).in('nama', names);
       if (chk.data && chk.data.length) {
@@ -363,7 +359,7 @@
     } catch (err) { console.error('loadKamus:', err); }
   }
 
-  // ===== MEMBER: tambah manual =====
+  // ===== MEMBER =====
   async function handleAddMember(e) {
     e.preventDefault();
     var nama = document.getElementById('am-nama').value.trim();
@@ -393,7 +389,6 @@
     } catch (err) { alert('Gagal simpan: ' + err.message); }
   }
 
-  // ===== MEMBER: upload excel =====
   async function handleExcelUpload(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -439,7 +434,6 @@
     reader.readAsArrayBuffer(file);
   }
 
-  // ===== MEMBER: tabel + edit =====
   async function loadMembersTable() {
     var body = document.getElementById('members-table-body');
     if (!body) return;
@@ -659,7 +653,9 @@
   }
   window.sendWishWhatsApp = sendWish;
 
-  // ===== REKAP WA =====
+  // =====================================================================
+  // REKAP WA (FORMAT BARU sesuai template klub)
+  // =====================================================================
   async function rekapWA(type) {
     var rc = document.getElementById('rekap-result');
     var rt = document.getElementById('rekap-text');
@@ -667,25 +663,67 @@
     rc.classList.remove('hidden');
     rt.innerText = 'Memuat...';
     try {
-      var runRes = await sb.from('runs').select('id, nama, tanggal_acara, run_number')
-        .eq('status', 'published').gte('tanggal_acara', todayISO())
-        .order('tanggal_acara').limit(1).maybeSingle();
+      var runRes = await sb.from('runs')
+        .select('id, nama, tanggal_acara, run_number')
+        .eq('status', 'published')
+        .gte('tanggal_acara', todayISO())
+        .order('tanggal_acara')
+        .limit(1)
+        .maybeSingle();
       if (!runRes.data) { rt.innerText = 'Tidak ada run mendatang.'; return; }
       var run = runRes.data;
-      var msg = '*REKAP ' + type.toUpperCase() + ' RUN*\n#' + run.run_number + ' ' + run.nama + '\n' + formatTanggal(run.tanggal_acara) + '\n\n';
+
+      // Peta nama -> type (member/visitor) dari tabel people
+      var ppl = await sb.from('people').select('nama, type');
+      var typeMap = {};
+      (ppl.data || []).forEach(function (p) {
+        typeMap[String(p.nama).toLowerCase()] = (p.type || 'visitor');
+      });
+
+      var entries = [];
       if (type === 'daftar') {
-        var regs = await sb.from('run_registrations').select('nama, tipe').eq('run_id', run.id);
-        if (regs.data && regs.data.length) {
-          msg += 'Total: ' + regs.data.length + '\n' + regs.data.map(function (r, i) { return (i + 1) + '. ' + r.nama + ' (' + (r.tipe || '-') + ')'; }).join('\n');
-        } else msg += 'Belum ada pendaftar.';
+        var regs = await sb.from('run_registrations').select('nama').eq('run_id', run.id);
+        (regs.data || []).forEach(function (r) {
+          entries.push({ nama: r.nama, tipe: typeMap[String(r.nama).toLowerCase()] || 'visitor' });
+        });
       } else {
-        var att = await sb.from('attendances').select('person_id, people:person_id(nama)').eq('tanggal', run.tanggal_acara);
-        if (att.data && att.data.length) {
-          msg += 'Total: ' + att.data.length + '\n' + att.data.map(function (a, i) { return (i + 1) + '. ' + ((a.people && a.people.nama) || a.person_id || '?'); }).join('\n');
-        } else msg += 'Belum ada kehadiran.';
+        var att = await sb.from('attendances').select('person_id, people:person_id(nama, type)').eq('tanggal', run.tanggal_acara);
+        (att.data || []).forEach(function (a) {
+          entries.push({
+            nama: (a.people && a.people.nama) || a.person_id || '?',
+            tipe: (a.people && a.people.type) || 'visitor'
+          });
+        });
       }
+
+      var members = entries.filter(function (e) { return e.tipe === 'member'; });
+      var visitors = entries.filter(function (e) { return e.tipe !== 'member'; });
+
+      var judul = (type === 'daftar') ? 'REKAP DAFTAR RUN' : 'REKAP HADIR RUN';
+      var totalLabel = (type === 'daftar') ? 'Total Daftar' : 'Total Hadir';
+
+      var msg = '*' + judul + ' #' + run.run_number + ' ' + run.nama + '*\n';
+      msg += formatTanggal(run.tanggal_acara) + '\n\n';
+      msg += '*' + totalLabel + ' = ' + entries.length + '*\n';
+
+      var no = 1;
+      if (members.length) {
+        msg += '*Total member : ' + members.length + '*\n';
+        members.forEach(function (e) { msg += no + '. ' + e.nama + ' (member)\n'; no++; });
+      }
+      if (visitors.length) {
+        msg += '\n*Total visitor : ' + visitors.length + '*\n';
+        visitors.forEach(function (e) { msg += no + '. ' + e.nama + ' (visitor)\n'; no++; });
+      }
+      if (!entries.length) {
+        msg += 'Belum ada data.\n';
+      }
+
+      msg += '\n*Hitman Pekanbaru Hashing Club*';
       rt.innerText = msg;
-    } catch (err) { rt.innerText = 'Error: ' + err.message; }
+    } catch (err) {
+      rt.innerText = 'Error: ' + err.message;
+    }
   }
   window.generateRekapWA = rekapWA;
 
