@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hitman Pekanbaru Hashing Club</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <div id="toastContainer" class="fixed top-4 right-4 z-[100] space-y-2 w-80 max-w-[90vw]"></div>
+
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="font-black tracking-wide text-emerald-400 cursor-pointer" onclick="switchPage('home')">
+        HITMAN PEKANBARU HASHING CLUB
+      </div>
+
+      <nav class="flex flex-wrap gap-2 text-xs font-bold">
+        <button onclick="switchPage('home')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Home</button>
+        <button onclick="switchPage('jadwal')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Jadwal</button>
+        <button onclick="switchPage('galeri')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Galeri</button>
+        <button onclick="switchPage('kamus')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Kamus</button>
+        <button onclick="switchPage('sejarah')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Sejarah</button>
+        <button onclick="switchPage('admin')" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950">Admin</button>
+        <button id="logoutNavBtn" onclick="logoutAdmin()" class="hidden px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-8">
+
+    <!-- HOME -->
+    <section id="page-home">
+      <div class="bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800 rounded-3xl p-10 text-center space-y-4">
+        <h1 class="text-3xl md:text-5xl font-black text-amber-400">HITMAN PEKANBARU HASHING CLUB</h1>
+        <p class="text-slate-300">Hike, Happy, Humble - On-On!</p>
+      </div>
+
+      <div class="mt-6 bg-slate-900 border border-slate-800 rounded-3xl p-6">
+        <h2 class="font-bold text-amber-400 mb-4">🏆 Papan Prestasi</h2>
+        <div id="prestasiList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm"></div>
+      </div>
+    </section>
+
+    <!-- JADWAL -->
+    <section id="page-jadwal" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <h2 class="font-bold text-amber-400 text-xl">Jadwal Run Terdekat</h2>
+        <div id="featuredRun" class="text-sm text-slate-300">Memuat...</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <h2 class="font-bold text-emerald-400 text-xl">Daftar Ikut Run</h2>
+
+        <div class="grid md:grid-cols-2 gap-3">
+          <select id="publicRunSelect" onchange="loadPublicRunRegs()" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></select>
+          <input id="publicRunName" placeholder="Nama lengkap / hash name" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+        </div>
+
+        <button onclick="submitPublicRunReg()" class="bg-emerald-700 hover:bg-emerald-600 px-4 py-3 rounded-xl font-bold text-sm">
+          Daftar Sekarang
+        </button>
+
+        <div>
+          <h3 class="font-bold text-slate-300 mb-2">Peserta Terdaftar</h3>
+          <div id="publicRunRegList" class="space-y-2 text-sm"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GALERI -->
+    <section id="page-galeri" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <h2 class="font-bold text-amber-400 text-xl">Galeri Foto</h2>
+
+        <div id="adminGalleryForm" class="hidden grid md:grid-cols-3 gap-3">
+          <input type="file" id="galleryFile" accept="image/*" class="bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm">
+          <input id="galleryCaption" placeholder="Caption" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+          <button onclick="uploadGallery()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Tambah Foto</button>
+        </div>
+
+        <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- KAMUS -->
+    <section id="page-kamus" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <h2 class="font-bold text-amber-400 text-xl">Kamus Hash</h2>
+
+        <div id="adminKamusForm" class="hidden grid md:grid-cols-3 gap-3">
+          <input id="kamusTerm" placeholder="Istilah" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+          <input id="kamusDef" placeholder="Definisi" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+          <button onclick="addKamus()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Tambah</button>
+        </div>
+
+        <div id="kamusList" class="grid md:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- SEJARAH -->
+    <section id="page-sejarah" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <h2 class="font-bold text-amber-400 text-xl">Sejarah Klub</h2>
+
+        <div id="sejarahView" class="text-sm text-slate-300 whitespace-pre-line"></div>
+
+        <div id="sejarahEditWrap" class="hidden space-y-3">
+          <textarea id="sejarahEdit" rows="10" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></textarea>
+          <button onclick="saveSejarah()" class="bg-emerald-700 hover:bg-emerald-600 px-4 py-3 rounded-xl font-bold text-sm">Simpan Sejarah</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="page-admin" class="hidden space-y-6">
+
+      <div id="adminAuth" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md mx-auto space-y-3">
+        <h2 class="font-bold text-amber-400 text-xl">Login Admin</h2>
+        <input id="adminEmail" type="email" placeholder="Email admin" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+        <input id="adminPassword" type="password" placeholder="Password" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+        <button onclick="loginAdmin()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl">Masuk</button>
+      </div>
+
+      <div id="adminDashboard" class="hidden space-y-6">
+
+        <div class="flex flex-wrap gap-2 text-xs font-bold">
+          <button onclick="switchAdminTab('member')" class="px-4 py-2 rounded-xl bg-slate-800">👤 Member</button>
+          <button onclick="switchAdminTab('iuran')" class="px-4 py-2 rounded-xl bg-slate-800">💳 Iuran</button>
+          <button onclick="switchAdminTab('kas')" class="px-4 py-2 rounded-xl bg-slate-800">💰 Kas</button>
+          <button onclick="switchAdminTab('hare')" class="px-4 py-2 rounded-xl bg-slate-800">🚩 Hare</button>
+          <button onclick="switchAdminTab('runreg')" class="px-4 py-2 rounded-xl bg-slate-800">🏃 Run Reg</button>
+          <button onclick="switchAdminTab('logs')" class="px-4 py-2 rounded-xl bg-slate-800">📜 Logs</button>
+          <button onclick="switchAdminTab('settings')" class="px-4 py-2 rounded-xl bg-slate-800">⚙️ Settings</button>
+        </div>
+
+        <!-- TAB MEMBER -->
+        <div id="tab-member" class="space-y-6">
+
+          <div class="grid lg:grid-cols-2 gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+              <h3 class="font-bold text-emerald-400">Scanner Absensi</h3>
+              <div id="reader" class="bg-black rounded-2xl min-h-[260px] flex items-center justify-center overflow-hidden"></div>
+              <div class="flex gap-2">
+                <button onclick="startScanner()" class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold text-sm">Start Camera</button>
+                <button onclick="stopScanner()" class="flex-1 bg-rose-600 hover:bg-rose-500 py-3 rounded-xl font-bold text-sm">Stop</button>
+              </div>
+              <div id="scanResult" class="text-sm font-bold"></div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+              <h3 class="font-bold text-amber-400">Daftar Member / Visitor</h3>
+
+              <form onsubmit="handleRegister(event)" class="space-y-3 text-sm">
+                <select id="regType" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                  <option value="member">Member</option>
+                  <option value="visitor">Visitor</option>
+                </select>
+
+                <input id="regName" required placeholder="Nama lengkap" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <input id="regHash" placeholder="Hash name" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <input id="regPhone" placeholder="Nomor WA: 0812..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+
+                <select id="regSize" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                  <option>S</option>
+                  <option>M</option>
+                  <option selected>L</option>
+                  <option>XL</option>
+                  <option>XXL</option>
+                </select>
+
+                <input id="regPhoto" type="file" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2">
+
+                <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Simpan & Buat QR</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+            <h3 class="font-bold text-slate-200 mb-4">Database Member & Visitor</h3>
+            <table class="w-full text-left text-xs min-w-[900px]">
+              <thead class="text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2">Foto</th>
+                  <th class="p-2">ID</th>
+                  <th class="p-2">Nama</th>
+                  <th class="p-2">Hash</th>
+                  <th class="p-2">Tipe</th>
+                  <th class="p-2">WA</th>
+                  <th class="p-2">Status</th>
+                  <th class="p-2">Hadir</th>
+                  <th class="p-2">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="membersTable" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB IURAN -->
+        <div id="tab-iuran" class="hidden space-y-6">
+
+          <div class="grid lg:grid-cols-2 gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+              <h3 class="font-bold text-amber-400">Buat Periode Iuran</h3>
+              <form onsubmit="createPeriod(event)" class="space-y-3 text-sm">
+                <input id="periodMonth" type="month" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <input id="periodTarif" type="number" placeholder="Tarif, contoh 50000" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <input id="periodDue" type="date" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Buat Periode & Generate Tagihan</button>
+              </form>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+              <h3 class="font-bold text-emerald-400">Ajukan Pembayaran</h3>
+              <form onsubmit="submitPayment(event)" class="space-y-3 text-sm">
+                <select id="payMember" onchange="renderPayPeriodOptions()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"></select>
+                <select id="payPeriods" multiple size="6" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"></select>
+                <p class="text-[11px] text-slate-500">Tahan Ctrl / Cmd untuk pilih banyak bulan.</p>
+                <select id="payMethod" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                  <option>QRIS</option>
+                  <option>Transfer Bank</option>
+                  <option>Tunai</option>
+                </select>
+                <input id="payRef" placeholder="No referensi / bukti transfer (opsional)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <button class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-3 rounded-xl font-bold">Buat Payment Request</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+            <h3 class="font-bold text-slate-200 mb-4">Tagihan Iuran</h3>
+            <table class="w-full text-left text-xs min-w-[900px]">
+              <thead class="text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2">Periode</th>
+                  <th class="p-2">Member</th>
+                  <th class="p-2">Tagihan</th>
+                  <th class="p-2">Status</th>
+                  <th class="p-2">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="billsTable" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+            <h3 class="font-bold text-slate-200 mb-4">Verifikasi Pembayaran</h3>
+            <table class="w-full text-left text-xs min-w-[900px]">
+              <thead class="text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2">Tanggal</th>
+                  <th class="p-2">Member</th>
+                  <th class="p-2">Total</th>
+                  <th class="p-2">Metode</th>
+                  <th class="p-2">Status</th>
+                  <th class="p-2">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="paymentsTable" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB KAS -->
+        <div id="tab-kas" class="hidden space-y-6">
+          <div class="grid lg:grid-cols-2 gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+              <h3 class="font-bold text-amber-400">Input Kas Manual</h3>
+              <form onsubmit="addKas(event)" class="space-y-3 text-sm">
+                <input id="kasDate" type="date" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <select id="kasTipe" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                  <option>Masuk</option>
+                  <option>Keluar</option>
+                </select>
+                <select id="kasKategori" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                  <option>iuran</option>
+                  <option>donasi</option>
+                  <option>acara</option>
+                  <option>konsumsi</option>
+                  <option>perlengkapan</option>
+                  <option>operasional</option>
+                  <option>lainnya</option>
+                </select>
+                <input id="kasKet" required placeholder="Keterangan" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <input id="kasJumlah" type="number" required placeholder="Jumlah" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+                <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Simpan Kas</button>
+              </form>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+              <h3 class="font-bold text-slate-200 mb-2">Total Saldo Kas</h3>
+              <div id="kasSaldo" class="text-3xl font-black text-emerald-400">Rp 0</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+            <h3 class="font-bold text-slate-200 mb-4">Riwayat Kas</h3>
+            <table class="w-full text-left text-xs min-w-[900px]">
+              <thead class="text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2">Tanggal</th>
+                  <th class="p-2">Kategori</th>
+                  <th class="p-2">Keterangan</th>
+                  <th class="p-2">Tipe</th>
+                  <th class="p-2">Jumlah</th>
+                  <th class="p-2">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="kasTable" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB HARE -->
+        <div id="tab-hare" class="hidden space-y-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-bold text-amber-400">Tambah Hare / Run</h3>
+            <form onsubmit="addRun(event)" class="grid md:grid-cols-2 gap-3 text-sm">
+              <input id="runNumber" type="number" placeholder="Nomor run (opsional)" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="runName" required placeholder="Nama hare" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="runDate" type="date" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="runLocation" placeholder="Lokasi" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="runDesc" placeholder="Deskripsi" class="bg-slate-950 border border-slate-700 rounded-xl p-3 md:col-span-2">
+              <input id="runPhoto" type="file" accept="image/*" class="bg-slate-950 border border-slate-700 rounded-xl p-2 md:col-span-2">
+              <button class="md:col-span-2 bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Simpan Run</button>
+            </form>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+            <h3 class="font-bold text-slate-200 mb-4">Daftar Run</h3>
+            <table class="w-full text-left text-xs min-w-[900px]">
+              <thead class="text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2">Run</th>
+                  <th class="p-2">Nama</th>
+                  <th class="p-2">Tanggal</th>
+                  <th class="p-2">Lokasi</th>
+                  <th class="p-2">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="runsTable" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB RUN REG -->
+        <div id="tab-runreg" class="hidden space-y-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <h3 class="font-bold text-amber-400">Pendaftaran Run</h3>
+
+            <div class="grid md:grid-cols-3 gap-3">
+              <select id="adminRunRecapSelect" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></select>
+              <input id="recapGroupNumber" placeholder="Nomor WA grup: 628..." class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+              <button onclick="sendRunRegRecapWA()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Kirim Rekap WA</button>
+            </div>
+
+            <div id="runRegsTable" class="space-y-2 text-sm"></div>
+          </div>
+        </div>
+
+        <!-- TAB LOGS -->
+        <div id="tab-logs" class="hidden space-y-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-bold text-amber-400">Scan Logs</h3>
+            <div id="scanLogs" class="text-xs space-y-2"></div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-bold text-emerald-400">WA Logs</h3>
+            <div id="waLogs" class="text-xs space-y-2"></div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-bold text-rose-400">Audit Logs</h3>
+            <div id="auditLogs" class="text-xs space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- TAB SETTINGS -->
+        <div id="tab-settings" class="hidden space-y-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+            <h3 class="font-bold text-slate-200 mb-4">Pengaturan</h3>
+            <table class="w-full text-left text-xs min-w-[800px]">
+              <thead class="text-slate-400 uppercase">
+                <tr>
+                  <th class="p-2">Key</th>
+                  <th class="p-2">Value</th>
+                  <th class="p-2">Public</th>
+                  <th class="p-2">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="settingsTable" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- QR MODAL -->
+  <div id="qrModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[90] p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-sm text-center space-y-4">
+      <h3 id="qrTitle" class="font-bold text-amber-400"></h3>
+      <div id="qrBox" class="bg-white p-4 rounded-2xl w-52 h-52 mx-auto flex items-center justify-center"></div>
+      <button onclick="closeQrModal()" class="w-full bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold">Tutup</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
