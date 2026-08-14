@@ -1,50 +1,51 @@
-/**
- * Hitman Pekanbaru Hashing Club - Supabase Configuration (FINAL dengan Retry)
- */
-(function() {
-    const SUPABASE_URL = 'https://awpcrceoxddyltasznht.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3cGNyY2VveGRkeWx0YXN6bmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2OTExMDUsImV4cCI6MjEwMjI2NzEwNX0.SJbTlcxJ19454JVV2Q6lnQm7sNpbCHjgMqGSD7Bo_yE';
+/* =====================================================================
+   HITMAN PEKANBARU HASHING CLUB - js/config.js (VERSI 3 - FINAL)
+   =====================================================================
+   ATURAN: SATU-SATUNYA baris yang boleh Anda edit adalah baris dengan
+   tanda  >>>  . Paste anon key DI ANTARA dua tanda kutip (').
+   JANGAN mengubah baris lain dalam bentuk apa pun.
+   ===================================================================== */
+(function () {
+  'use strict';
 
-    console.log('📦 [config.js] Mencoba inisialisasi Supabase...');
+  var PROJECT_URL = 'https://awpcrceoxddyltasznht.supabase.co';
 
-    let attempts = 0;
-    const maxAttempts = 50; // 50 x 100ms = 5 detik timeout
+  /* >>> EDIT BARIS INI SAJA - paste anon key di antara tanda kutip <<< */
+  var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3cGNyY2VveGRkeWx0YXN6bmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2OTExMDUsImV4cCI6MjEwMjI2NzEwNX0.SJbTlcxJ19454JVV2Q6lnQm7sNpbCHjgMqGSD7Bo_yE';
+  /* >>> JANGAN EDIT BARIS LAIN >>> */
 
-    function tryInit() {
-        attempts++;
-        
-        // Cek apakah CDN Supabase sudah tersedia
-        if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
-            if (attempts < maxAttempts) {
-                console.log(`⏳ [config.js] CDN belum siap, mencoba lagi... (${attempts}/${maxAttempts})`);
-                setTimeout(tryInit, 100); // Coba lagi dalam 100ms
-                return;
-            } else {
-                console.error('❌ [config.js] TIMEOUT: CDN Supabase tidak ter-load setelah 5 detik!');
-                console.error('Pastikan <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> ada di <head> index.html');
-                window.supabaseReady = false;
-                return;
-            }
-        }
+  // Guard 1: pastikan key terisi (typeof aman, tidak akan throw ReferenceError)
+  if (typeof ANON_KEY === 'undefined' || !ANON_KEY || ANON_KEY.indexOf('PASTE_') === 0) {
+    console.error('❌ [config.js] ANON_KEY kosong / masih placeholder / barisnya rusak. Buka Supabase Dashboard > Project Settings > API > salin "anon public", lalu paste DI ANTARA tanda kutip pada baris >>> di file js/config.js.');
+    window.supabaseReady = false;
+    return;
+  }
 
-        // CDN sudah siap, buat client
-        try {
-            window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            window.supabaseReady = true;
-            
-            console.log('✅ [config.js] Supabase client berhasil dibuat!');
-            console.log('✅ [config.js] Auth tersedia:', !!window.sb.auth);
-            console.log('✅ [config.js] signInWithPassword:', typeof window.sb.auth?.signInWithPassword === 'function');
-            
-            // Trigger event untuk memberitahu app.js
-            window.dispatchEvent(new Event('supabaseReady'));
-            
-        } catch (err) {
-            console.error('❌ [config.js] Gagal membuat client:', err);
-            window.supabaseReady = false;
-        }
+  var attempts = 0;
+  var MAX_ATTEMPTS = 50;
+
+  function tryInit() {
+    attempts++;
+
+    // Guard 2: CDN supabase-js harus sudah termuat
+    if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
+      if (attempts < MAX_ATTEMPTS) { setTimeout(tryInit, 100); return; }
+      console.error('❌ [config.js] CDN supabase-js tidak termuat setelah 5 detik. Periksa koneksi internet.');
+      window.supabaseReady = false;
+      return;
     }
 
-    // Mulai proses inisialisasi
-    tryInit();
+    try {
+      window.sb = window.supabase.createClient(PROJECT_URL, ANON_KEY);
+      window.supabaseReady = true;
+      console.log('✅ [config.js] Supabase client BERHASIL dibuat.');
+      console.log('✅ [config.js] auth tersedia:', !!window.sb.auth);
+      window.dispatchEvent(new Event('supabaseReady'));
+    } catch (err) {
+      console.error('❌ [config.js] createClient melempar error:', err);
+      window.supabaseReady = false;
+    }
+  }
+
+  tryInit();
 })();
