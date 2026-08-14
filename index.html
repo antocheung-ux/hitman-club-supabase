@@ -5,20 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hitman Pekanbaru Hashing Club</title>
     
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- External Libraries -->
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
-    <!-- Custom Tailwind Config & Animations -->
     <script>
         tailwind.config = {
             theme: {
@@ -61,7 +57,6 @@
     </script>
 
     <style>
-        /* Shine Effect */
         .shine-effect { position: relative; overflow: hidden; }
         .shine-effect::after {
             content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
@@ -70,12 +65,10 @@
         }
         @keyframes shine { 0% { left: -100%; } 100% { left: 100%; } }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #166534; border-radius: 4px; }
 
-        /* Modal Overlay */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
@@ -83,14 +76,9 @@
         }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
 
-        /* Lightbox Gallery */
         .gallery-item { cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .gallery-item:hover { transform: scale(1.05); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        
-        /* Lightbox Image */
         #lightbox-img { max-width: 90vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
-
-        /* Section spacing */
         section[id] { scroll-margin-top: 80px; }
     </style>
 </head>
@@ -104,9 +92,19 @@
                 <h1 class="text-white text-xl md:text-2xl font-bold tracking-wide">Hitman Pekanbaru</h1>
             </div>
             <div class="flex items-center gap-3">
-                <a href="/" class="hidden md:flex items-center gap-2 bg-hash-amber hover:bg-amber-600 text-white px-4 py-2 rounded-lg shadow-md transition shine-effect">
-                    <i class="fas fa-home"></i> Back to Home
+                <!-- FIX #1: Back to Home pakai ./ bukan / -->
+                <a href="./" class="hidden md:flex items-center gap-2 bg-hash-amber hover:bg-amber-600 text-white px-4 py-2 rounded-lg shadow-md transition shine-effect">
+                    <i class="fas fa-home"></i> Home
                 </a>
+
+                <!-- FIX #2: Tombol Login / Logout Admin -->
+                <button id="btn-login-nav" onclick="openLoginModal()" class="hidden md:flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-sign-in-alt"></i> Login Admin
+                </button>
+                <button id="btn-logout-nav" onclick="logoutAdmin()" class="hidden items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+
                 <button id="menu-toggle" class="md:hidden text-white text-2xl">
                     <i class="fas fa-bars"></i>
                 </button>
@@ -114,14 +112,26 @@
         </div>
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden md:hidden bg-hash-green border-t border-green-700 pb-3">
-            <a href="/" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-home mr-2"></i> Back to Home</a>
+            <a href="./" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-home mr-2"></i> Home</a>
             <a href="#section-jadwal" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-calendar mr-2"></i> Jadwal Run</a>
             <a href="#section-galeri" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-images mr-2"></i> Galeri</a>
-            <a href="#section-admin" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-cog mr-2"></i> Panel Admin</a>
+            <a href="#section-kamus" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-book mr-2"></i> Kamus Hash</a>
+            <!-- Admin menu items (hidden by default) -->
+            <div id="mobile-admin-menu" class="hidden border-t border-green-700 mt-2 pt-2">
+                <a href="#section-admin" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-cog mr-2"></i> Panel Admin</a>
+                <a href="#section-rekap" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fab fa-whatsapp mr-2"></i> Rekap WA</a>
+                <a href="#section-ultah" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-birthday-cake mr-2"></i> Ultah</a>
+                <a href="#section-logs" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-history mr-2"></i> Logs</a>
+                <button onclick="logoutAdmin()" class="block w-full text-left px-4 py-2 text-red-300 hover:bg-green-800"><i class="fas fa-sign-out-alt mr-2"></i> Logout</button>
+            </div>
+            <!-- Login button mobile -->
+            <div id="mobile-login-btn">
+                <button onclick="openLoginModal()" class="block w-full text-left px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-sign-in-alt mr-2"></i> Login Admin</button>
+            </div>
         </div>
     </nav>
 
-    <!-- Ticker / Running Text -->
+    <!-- Ticker -->
     <div class="bg-hash-brown text-white py-2 overflow-hidden whitespace-nowrap border-b-2 border-hash-amber">
         <div class="inline-block animate-ticker font-semibold">
             <i class="fas fa-bullhorn mr-2"></i> Selamat Datang di Website Resmi Hitman Pekanbaru Hashing Club! &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; 
@@ -133,7 +143,7 @@
     <!-- Main Content -->
     <main class="flex-grow container mx-auto px-4 py-8">
         
-        <!-- Hero Section -->
+        <!-- Hero -->
         <section class="mb-12 text-center animate-fade-in">
             <h2 class="text-3xl md:text-4xl font-bold text-hash-green mb-4">Sistem Manajemen Klub</h2>
             <p class="text-gray-600 max-w-2xl mx-auto">Portal terpusat untuk registrasi member, jadwal run, kas iuran, dan absensi QR Code Hitman Pekanbaru.</p>
@@ -141,7 +151,6 @@
 
         <!-- Quick Access Cards -->
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-slide-up">
-            <!-- Card 1: Jadwal Run -->
             <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-hash-green hover:shadow-xl transition">
                 <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float">
                     <i class="fas fa-running text-3xl text-hash-green"></i>
@@ -151,7 +160,6 @@
                 <button onclick="document.getElementById('section-jadwal').scrollIntoView({behavior:'smooth'})" class="w-full bg-hash-green text-white py-2 rounded-lg hover:bg-green-800 transition shine-effect">Lihat Jadwal</button>
             </div>
 
-            <!-- Card 2: Absensi & ID Card -->
             <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-hash-amber hover:shadow-xl transition">
                 <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float" style="animation-delay: 0.5s;">
                     <i class="fas fa-qrcode text-3xl text-hash-amber"></i>
@@ -161,18 +169,22 @@
                 <button id="btn-open-scanner" class="w-full bg-hash-amber text-white py-2 rounded-lg hover:bg-amber-600 transition shine-effect">Buka Scanner</button>
             </div>
 
-            <!-- Card 3: Admin -->
             <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-hash-brown hover:shadow-xl transition">
                 <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float" style="animation-delay: 1s;">
                     <i class="fas fa-user-shield text-3xl text-hash-brown"></i>
                 </div>
                 <h3 class="text-xl font-bold text-hash-brown text-center mb-2">Panel Admin</h3>
                 <p class="text-gray-600 text-center text-sm mb-4">Kelola member, kas bank, dan export data.</p>
-                <button onclick="document.getElementById('section-admin').scrollIntoView({behavior:'smooth'})" class="w-full bg-hash-brown text-white py-2 rounded-lg hover:bg-yellow-900 transition shine-effect">Kelola Data</button>
+                <!-- FIX #3: Tombol ini sekarang cek login dulu -->
+                <button onclick="goToAdminPanel()" class="w-full bg-hash-brown text-white py-2 rounded-lg hover:bg-yellow-900 transition shine-effect">Kelola Data</button>
             </div>
         </section>
 
-        <!-- SECTION: Jadwal Run Minggu Ini -->
+        <!-- ============================================ -->
+        <!-- PUBLIC SECTIONS (Selalu tampil) -->
+        <!-- ============================================ -->
+
+        <!-- Jadwal Run -->
         <section id="section-jadwal" class="bg-white p-6 rounded-xl shadow-lg mb-12">
             <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
                 <i class="fas fa-calendar-alt"></i> Jadwal Run Minggu Ini
@@ -182,7 +194,7 @@
             </div>
         </section>
 
-        <!-- SECTION: Form Registrasi Run -->
+        <!-- Form Registrasi Run -->
         <section id="section-registrasi" class="bg-white p-6 rounded-xl shadow-lg mb-12">
             <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
                 <i class="fas fa-user-plus"></i> Daftar Ikut Run
@@ -207,18 +219,17 @@
             </div>
         </section>
 
-        <!-- SECTION: Galeri (Lightbox) -->
+        <!-- Galeri -->
         <section id="section-galeri" class="bg-white p-6 rounded-xl shadow-lg mb-12">
             <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
                 <i class="fas fa-images"></i> Galeri Kegiatan
             </h3>
             <div id="gallery-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <!-- Gambar akan dirender oleh app.js -->
                 <p class="text-gray-500 col-span-full text-center py-8">Memuat galeri...</p>
             </div>
         </section>
 
-        <!-- SECTION: Kamus Hash -->
+        <!-- Kamus Hash -->
         <section id="section-kamus" class="bg-white p-6 rounded-xl shadow-lg mb-12">
             <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
                 <i class="fas fa-book"></i> Kamus Hash & Sejarah
@@ -226,112 +237,121 @@
             <div id="kamus-container" class="prose max-w-none">
                 <p class="text-gray-500 text-center py-8">Memuat kamus hash...</p>
             </div>
-            <!-- Admin-only edit button (hidden by default) -->
-            <button id="btn-edit-kamus" class="hidden mt-4 bg-hash-brown text-white px-4 py-2 rounded-lg hover:bg-yellow-900 transition">
-                <i class="fas fa-edit mr-2"></i> Edit Kamus (Admin Only)
-            </button>
         </section>
 
-        <!-- SECTION: Ultah Member -->
-        <section id="section-ultah" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fas fa-birthday-cake"></i> Ulang Tahun Bulan Ini
-            </h3>
-            <div id="ultah-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <p class="text-gray-500 col-span-2 text-center py-8">Memuat data ultah...</p>
-            </div>
-        </section>
+        <!-- ============================================ -->
+        <!-- FIX #3: ADMIN SECTIONS (Hidden by default) -->
+        <!-- Hanya tampil setelah login admin -->
+        <!-- ============================================ -->
 
-        <!-- SECTION: Rekap WA -->
-        <section id="section-rekap" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fab fa-whatsapp"></i> Rekap WhatsApp
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button id="btn-rekap-daftar" class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
-                    <i class="fas fa-list mr-2"></i> Rekap Daftar Run
-                </button>
-                <button id="btn-rekap-hadir" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition">
-                    <i class="fas fa-user-check mr-2"></i> Rekap Hadir Run
-                </button>
-            </div>
-            <div id="rekap-result" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
-                <pre id="rekap-text" class="whitespace-pre-wrap text-sm"></pre>
-                <button id="btn-copy-rekap" class="mt-2 bg-hash-green text-white px-4 py-2 rounded-lg text-sm">
-                    <i class="fas fa-copy mr-1"></i> Copy ke Clipboard
-                </button>
-            </div>
-        </section>
-
-        <!-- SECTION: Panel Admin -->
-        <section id="section-admin" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-6 flex items-center gap-2">
-                <i class="fas fa-database"></i> Panel Data & Export
-            </h3>
+        <!-- Admin Header -->
+        <div id="admin-sections" class="hidden">
             
-            <!-- Upload Excel -->
-            <div class="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 class="font-bold text-blue-800 mb-2"><i class="fas fa-file-excel mr-2"></i> Upload Data Member (Excel)</h4>
-                <p class="text-sm text-gray-600 mb-3">Pastikan kolom Excel: <strong>Nama, Tanggal Lahir, Size, No HP</strong>.</p>
-                <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden">
-                <button id="btn-upload-excel" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
-                    <i class="fas fa-upload mr-2"></i> Pilih & Upload File
-                </button>
+            <div class="mb-8 p-4 bg-gradient-to-r from-hash-green to-hash-brown rounded-xl text-white">
+                <h3 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fas fa-shield-alt"></i> Panel Administrator
+                </h3>
+                <p class="text-green-200 text-sm mt-1">Anda login sebagai admin. Kelola data klub di bawah ini.</p>
             </div>
 
-            <!-- Export Buttons -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Export Member -->
-                <div class="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <h4 class="font-bold text-green-800 mb-3"><i class="fas fa-users mr-2"></i> Database Member</h4>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="btn-export-member-excel" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
-                            <i class="fas fa-file-excel mr-1"></i> Excel
-                        </button>
-                        <button id="btn-export-member-pdf" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm">
-                            <i class="fas fa-file-pdf mr-1"></i> PDF
-                        </button>
-                    </div>
+            <!-- Panel Data & Export -->
+            <section id="section-admin" class="bg-white p-6 rounded-xl shadow-lg mb-12">
+                <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-6 flex items-center gap-2">
+                    <i class="fas fa-database"></i> Panel Data & Export
+                </h3>
+                
+                <div class="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 class="font-bold text-blue-800 mb-2"><i class="fas fa-file-excel mr-2"></i> Upload Data Member (Excel)</h4>
+                    <p class="text-sm text-gray-600 mb-3">Pastikan kolom Excel: <strong>Nama, Tanggal Lahir, Size, No HP</strong>.</p>
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden">
+                    <button id="btn-upload-excel" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
+                        <i class="fas fa-upload mr-2"></i> Pilih & Upload File
+                    </button>
                 </div>
 
-                <!-- Export Kas -->
-                <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                    <h4 class="font-bold text-amber-800 mb-3"><i class="fas fa-money-bill-wave mr-2"></i> Laporan Kas Bank</h4>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="btn-export-kas-excel" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
-                            <i class="fas fa-file-excel mr-1"></i> Excel
-                        </button>
-                        <button id="btn-export-kas-pdf" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm">
-                            <i class="fas fa-file-pdf mr-1"></i> PDF
-                        </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h4 class="font-bold text-green-800 mb-3"><i class="fas fa-users mr-2"></i> Database Member</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="btn-export-member-excel" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
+                                <i class="fas fa-file-excel mr-1"></i> Excel
+                            </button>
+                            <button id="btn-export-member-pdf" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm">
+                                <i class="fas fa-file-pdf mr-1"></i> PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <h4 class="font-bold text-amber-800 mb-3"><i class="fas fa-money-bill-wave mr-2"></i> Laporan Kas Bank</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="btn-export-kas-excel" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
+                                <i class="fas fa-file-excel mr-1"></i> Excel
+                            </button>
+                            <button id="btn-export-kas-pdf" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm">
+                                <i class="fas fa-file-pdf mr-1"></i> PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- SECTION: Logs -->
-        <section id="section-logs" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fas fa-history"></i> Log Aktivitas
-            </h3>
-            <div id="logs-container" class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-hash-green text-white">
-                        <tr>
-                            <th class="px-4 py-2">Waktu</th>
-                            <th class="px-4 py-2">Aksi</th>
-                            <th class="px-4 py-2">User</th>
-                            <th class="px-4 py-2">Detail</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logs-table-body">
-                        <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">Memuat logs...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+            <!-- Rekap WA -->
+            <section id="section-rekap" class="bg-white p-6 rounded-xl shadow-lg mb-12">
+                <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
+                    <i class="fab fa-whatsapp"></i> Rekap WhatsApp
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="btn-rekap-daftar" class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-list mr-2"></i> Rekap Daftar Run
+                    </button>
+                    <button id="btn-rekap-hadir" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-user-check mr-2"></i> Rekap Hadir Run
+                    </button>
+                </div>
+                <div id="rekap-result" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+                    <pre id="rekap-text" class="whitespace-pre-wrap text-sm"></pre>
+                    <button id="btn-copy-rekap" class="mt-2 bg-hash-green text-white px-4 py-2 rounded-lg text-sm">
+                        <i class="fas fa-copy mr-1"></i> Copy ke Clipboard
+                    </button>
+                </div>
+            </section>
 
-        <!-- SECTION: ID Card Preview (Hidden) -->
+            <!-- Ultah -->
+            <section id="section-ultah" class="bg-white p-6 rounded-xl shadow-lg mb-12">
+                <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
+                    <i class="fas fa-birthday-cake"></i> Ulang Tahun Bulan Ini
+                </h3>
+                <div id="ultah-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p class="text-gray-500 col-span-2 text-center py-8">Memuat data ultah...</p>
+                </div>
+            </section>
+
+            <!-- Logs -->
+            <section id="section-logs" class="bg-white p-6 rounded-xl shadow-lg mb-12">
+                <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
+                    <i class="fas fa-history"></i> Log Aktivitas
+                </h3>
+                <div id="logs-container" class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-hash-green text-white">
+                            <tr>
+                                <th class="px-4 py-2">Waktu</th>
+                                <th class="px-4 py-2">Aksi</th>
+                                <th class="px-4 py-2">User</th>
+                                <th class="px-4 py-2">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-table-body">
+                            <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">Memuat logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div> <!-- END admin-sections -->
+
+        <!-- ID Card Preview (Hidden) -->
         <section id="section-idcard" class="hidden">
             <div id="id-card-preview" class="w-[350px] h-[220px] bg-white border-2 border-hash-green rounded-xl overflow-hidden relative">
                 <div class="bg-hash-green h-16 flex items-center px-4">
@@ -355,7 +375,6 @@
                     </div>
                 </div>
             </div>
-            <button onclick="downloadIDCard('id-card-preview', 'Member Contoh')" class="mt-4 bg-gray-800 text-white px-4 py-2 rounded">Test Download ID Card</button>
         </section>
 
     </main>
@@ -372,7 +391,7 @@
         </div>
     </div>
 
-    <!-- Modal Lightbox Galeri -->
+    <!-- Modal Lightbox -->
     <div id="lightbox-modal" class="modal-overlay" onclick="closeLightbox(event)">
         <div class="relative max-w-4xl w-full mx-4">
             <button onclick="closeLightbox()" class="absolute -top-12 right-0 text-white text-3xl hover:text-red-400">&times;</button>
@@ -380,6 +399,34 @@
             <div class="text-center text-white mt-4">
                 <p id="lightbox-caption" class="text-lg font-semibold"></p>
             </div>
+        </div>
+    </div>
+
+    <!-- FIX #2: Modal Login Admin -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl animate-slide-up">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-hash-green flex items-center gap-2">
+                    <i class="fas fa-shield-alt"></i> Login Admin
+                </h3>
+                <button onclick="closeLoginModal()" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+            </div>
+            <form id="form-login" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="login-email" placeholder="admin@hitman.com" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-hash-green focus:outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="login-password" placeholder="••••••••" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-hash-green focus:outline-none" required>
+                </div>
+                <div id="login-error" class="hidden text-red-500 text-sm bg-red-50 p-3 rounded-lg">
+                    <i class="fas fa-exclamation-circle mr-1"></i> Email atau password salah.
+                </div>
+                <button type="submit" id="btn-login-submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Masuk
+                </button>
+            </form>
         </div>
     </div>
 
@@ -412,7 +459,6 @@
     <script src="js/config.js"></script>
     <script src="js/app.js"></script>
     
-    <!-- Mobile Menu, Modal & Lightbox Logic -->
     <script>
         // Mobile Menu
         document.getElementById('menu-toggle').addEventListener('click', function() {
@@ -431,7 +477,7 @@
             }
         }
 
-        // Lightbox Galeri
+        // Lightbox
         function openLightbox(imgSrc, caption) {
             document.getElementById('lightbox-img').src = imgSrc;
             document.getElementById('lightbox-caption').innerText = caption || '';
@@ -443,7 +489,24 @@
             }
         }
 
-        // Copy Rekap WA
+        // Login Modal
+        function openLoginModal() {
+            document.getElementById('login-modal').classList.add('active');
+        }
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.remove('active');
+        }
+
+        // Go to Admin Panel
+        function goToAdminPanel() {
+            if (typeof isAdminLoggedIn === 'function' && isAdminLoggedIn()) {
+                document.getElementById('section-admin').scrollIntoView({behavior:'smooth'});
+            } else {
+                openLoginModal();
+            }
+        }
+
+        // Copy Rekap
         document.addEventListener('DOMContentLoaded', () => {
             const btnCopy = document.getElementById('btn-copy-rekap');
             if (btnCopy) {
@@ -454,8 +517,6 @@
                     });
                 });
             }
-
-            // Bind tombol scanner
             const btnScanner = document.getElementById('btn-open-scanner');
             if (btnScanner) btnScanner.addEventListener('click', openScannerModal);
         });
