@@ -1,27 +1,172 @@
 /**
- * Hitman Pekanbaru Hashing Club - Main Application Logic (FINAL)
+ * Hitman Pekanbaru Hashing Club - Main Application Logic (FINAL v2)
  * File: js/app.js
- * Deskripsi: Menangani semua logika frontend (Supabase, Export, UI, Galeri, Kamus, Ultah, WA, Logs, QR, ID Card)
+ * Fixes: 404 Back to Home, Login Admin, Admin Sections Hidden
  */
 
 // ==========================================
-// INISIALISASI & KONFIGURASI
+// AUTH STATE
 // ==========================================
+let currentUser = null;
+let isAdmin = false;
 
-// Pastikan variabel supabase sudah diinisialisasi di config.js
-// Jika belum, uncomment baris di bawah ini:
-// const SUPABASE_URL = 'https://awpcrceoxddyltasznht.supabase.co';
-// const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE';
-// const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+// ==========================================
+// INISIALISASI
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Hitman Hash App FINAL Initialized...');
+    console.log('Hitman Hash App FINAL v2 Initialized...');
+    initAuthListener();
     initEventListeners();
-    loadDashboardData();
+    loadPublicData();
 });
 
+// ==========================================
+// FIX #2: AUTH LOGIC (Login / Logout / Session)
+// ==========================================
+async function initAuthListener() {
+    // Cek session saat pertama kali load
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+        currentUser = session.user;
+        await checkAdminRole(session.user.id);
+    }
+
+    // Listen perubahan auth (login/logout)
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            await checkAdminRole(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            isAdmin = false;
+            updateUIAuthState();
+        }
+    });
+}
+
+async function checkAdminRole(userId) {
+    try {
+        const { data, error } = await supabase
+            .from('admin_profiles')
+            .select('id')
+            .eq('user_id', userId)
+            .single();
+
+        if (data && !error) {
+            isAdmin = true;
+        } else {
+            isAdmin = false;
+        }
+    } catch (err) {
+        console.error('Error checking admin role:', err);
+        isAdmin = false;
+    }
+    updateUIAuthState();
+}
+
+function updateUIAuthState() {
+    const btnLoginNav = document.getElementById('btn-login-nav');
+    const btnLogoutNav = document.getElementById('btn-logout-nav');
+    const adminSections = document.getElementById('admin-sections');
+    const mobileAdminMenu = document.getElementById('mobile-admin-menu');
+    const mobileLoginBtn = document.getElementById('mobile-login-btn');
+
+    if (isAdmin && currentUser) {
+        // Sudah login sebagai admin
+        if (btnLoginNav) btnLoginNav.classList.add('hidden');
+        if (btnLogoutNav) btnLogoutNav.classList.remove('hidden');
+        if (adminSections) adminSections.classList.remove('hidden');
+        if (mobileAdminMenu) mobileAdminMenu.classList.remove('hidden');
+        if (mobileLoginBtn) mobileLoginBtn.classList.add('hidden');
+        
+        // Load admin data
+        loadAdminData();
+    } else {
+        // Belum login
+        if (btnLoginNav) btnLoginNav.classList.remove('hidden');
+        if (btnLogoutNav) btnLogoutNav.classList.add('hidden');
+        if (adminSections) adminSections.classList.add('hidden');
+        if (mobileAdminMenu) mobileAdminMenu.classList.add('hidden');
+        if (mobileLoginBtn) mobileLoginBtn.classList.remove('hidden');
+    }
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errorDiv = document.getElementById('login-error');
+    const submitBtn = document.getElementById('btn-login-submit');
+
+    if (errorDiv) errorDiv.classList.add('hidden');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...';
+    }
+
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+
+        if (error) throw error;
+
+        // Login berhasil
+        closeLoginModal();
+        
+        // Reset form
+        document.getElementById('form-login').reset();
+        
+        alert('Login berhasil! Selamat datang, Admin.');
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        if (errorDiv) {
+            errorDiv.classList.remove('hidden');
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${error.message || 'Email atau password salah.'}`;
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> Masuk';
+        }
+    }
+}
+
+async function logoutAdmin() {
+    if (!confirm('Yakin ingin logout?')) return;
+    
+    try {
+        await supabase.auth.signOut();
+        currentUser = null;
+        isAdmin = false;
+        updateUIAuthState();
+        alert('Anda telah logout.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('Gagal logout: ' + error.message);
+    }
+}
+
+function isAdminLoggedIn() {
+    return isAdmin && currentUser !== null;
+}
+
+// ==========================================
+// EVENT LISTENERS
+// ==========================================
 function initEventListeners() {
-    // Req 1: Upload Excel Member
+    // Login Form
+    const loginForm = document.getElementById('form-login');
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+
+    // Upload Excel
     const uploadBtn = document.getElementById('btn-upload-excel');
     const fileInput = document.getElementById('excel-file-input');
     if (uploadBtn && fileInput) {
@@ -29,40 +174,40 @@ function initEventListeners() {
         fileInput.addEventListener('change', handleExcelUpload);
     }
 
-    // Req 2 & 3: Export Buttons (Member & Kas)
+    // Export Buttons
     attachExportListeners('member');
     attachExportListeners('kas');
 
-    // Req 6: Form Registrasi Run
+    // Form Registrasi Run
     const runForm = document.getElementById('form-run-registration');
     if (runForm) {
         runForm.addEventListener('submit', handleRunRegistration);
     }
 
-    // Rekap WhatsApp
+    // Rekap WA
     const btnRekapDaftar = document.getElementById('btn-rekap-daftar');
     const btnRekapHadir = document.getElementById('btn-rekap-hadir');
     if (btnRekapDaftar) btnRekapDaftar.addEventListener('click', () => generateRekapWA('daftar'));
     if (btnRekapHadir) btnRekapHadir.addEventListener('click', () => generateRekapWA('hadir'));
-
-    // Edit Kamus (Admin Only)
-    const btnEditKamus = document.getElementById('btn-edit-kamus');
-    if (btnEditKamus) {
-        btnEditKamus.addEventListener('click', openKamusEditor);
-    }
-}
-
-async function loadDashboardData() {
-    await loadFutureHares();      // Req 5 & 8
-    await lockRunRegistration();  // Req 6
-    await loadGallery();          // Opsi C: Galeri
-    await loadKamusHash();        // Opsi C: Kamus
-    await loadUltahMembers();     // Opsi C: Ultah
-    await loadLogs();             // Opsi C: Logs
 }
 
 // ==========================================
-// FITUR 1: UPLOAD EXCEL MEMBER (Req 1)
+// LOAD DATA
+// ==========================================
+async function loadPublicData() {
+    await loadFutureHares();
+    await lockRunRegistration();
+    await loadGallery();
+    await loadKamusHash();
+}
+
+async function loadAdminData() {
+    await loadUltahMembers();
+    await loadLogs();
+}
+
+// ==========================================
+// UPLOAD EXCEL
 // ==========================================
 async function handleExcelUpload(event) {
     const file = event.target.files[0];
@@ -76,7 +221,6 @@ async function handleExcelUpload(event) {
             const sheet = workbook.Sheets[workbook.SheetsNames[0]];
             const rawJson = XLSX.utils.sheet_to_json(sheet);
 
-            // Mapping kolom Excel ke Database
             const cleanData = rawJson.map(row => {
                 const lowerRow = Object.keys(row).reduce((acc, key) => {
                     acc[key.toLowerCase().replace(/\s/g, '_')] = row[key];
@@ -98,7 +242,6 @@ async function handleExcelUpload(event) {
                 return;
             }
 
-            // Cek Duplikasi sebelum insert (Req 7)
             const namesToCheck = cleanData.map(r => r.name);
             const isDuplicate = await checkDuplicateNames(namesToCheck);
             if (isDuplicate) {
@@ -107,7 +250,6 @@ async function handleExcelUpload(event) {
                 return;
             }
 
-            // Bulk Insert
             const { data: insertedData, error } = await supabase.from('people').insert(cleanData).select();
             if (error) throw error;
 
@@ -122,22 +264,21 @@ async function handleExcelUpload(event) {
 }
 
 // ==========================================
-// FITUR 2 & 3: EXPORT EXCEL & PDF (Req 2, 3)
+// EXPORT EXCEL & PDF
 // ==========================================
 function attachExportListeners(type) {
     const btnExcel = document.getElementById(`btn-export-${type}-excel`);
     const btnPdf = document.getElementById(`btn-export-${type}-pdf`);
-
     if (btnExcel) btnExcel.addEventListener('click', () => exportData(type, 'excel'));
     if (btnPdf) btnPdf.addEventListener('click', () => exportData(type, 'pdf'));
 }
 
 async function fetchExportData(type) {
     if (type === 'member') {
-        const { data, error } = await supabase.from('people').select('*').order('name');
+        const { data } = await supabase.from('people').select('*').order('name');
         return { data, title: 'Database Member Hitman Hash' };
     } else if (type === 'kas') {
-        const { data, error } = await supabase.from('kas_transactions').select('*').order('tanggal', { ascending: false });
+        const { data } = await supabase.from('kas_transactions').select('*').order('tanggal', { ascending: false });
         return { data, title: 'Laporan Kas Bank Hitman Hash' };
     }
     return { data: [], title: 'Data' };
@@ -158,14 +299,11 @@ async function exportData(type, format) {
     } else if (format === 'pdf') {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
         doc.setFontSize(16);
         doc.setTextColor(22, 101, 52);
         doc.text(title, 14, 15);
-        
         const columns = Object.keys(data[0]);
         const rows = data.map(row => columns.map(col => row[col] || '-'));
-
         doc.autoTable({
             head: [columns],
             body: rows,
@@ -174,29 +312,25 @@ async function exportData(type, format) {
             headStyles: { fillColor: [22, 101, 52] },
             styles: { fontSize: 8 }
         });
-
         doc.save(`${title.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 }
 
 // ==========================================
-// FITUR 4: KAS BANK & IURAN LOGIC (Req 4)
+// KAS BANK
 // ==========================================
 async function deleteKasTransaction(id) {
     if (!confirm('Yakin ingin menghapus transaksi ini? Status iuran member akan otomatis kembali ke Belum Bayar.')) return;
-    
     const { error } = await supabase.from('kas_transactions').delete().eq('id', id);
-    if (error) {
-        alert('Gagal menghapus: ' + error.message);
-    } else {
+    if (error) alert('Gagal menghapus: ' + error.message);
+    else {
         alert('Transaksi dihapus. Database iuran otomatis terupdate.');
-        // Reload UI kas jika ada fungsi render
         if (typeof loadKasTransactions === 'function') loadKasTransactions();
     }
 }
 
 // ==========================================
-// FITUR 5 & 8: JADWAL RUN / HARE (Req 5, 8)
+// JADWAL RUN
 // ==========================================
 async function loadFutureHares() {
     const container = document.getElementById('run-list-container');
@@ -216,7 +350,7 @@ async function loadFutureHares() {
     }
 
     if (!data || data.length === 0) {
-        container.innerHTML = `<p class="text-gray-500 col-span-2 text-center py-8">Belum ada jadwal run minggu ini yang terdaftar.</p>`;
+        container.innerHTML = `<p class="text-gray-500 col-span-2 text-center py-8">Belum ada jadwal run minggu ini.</p>`;
         return;
     }
 
@@ -234,7 +368,7 @@ async function loadFutureHares() {
 }
 
 // ==========================================
-// FITUR 6: KUNCI RUN TERDEKAT (Req 6)
+// KUNCI RUN TERDEKAT
 // ==========================================
 async function lockRunRegistration() {
     const selectDropdown = document.getElementById('run-select');
@@ -268,7 +402,6 @@ async function handleRunRegistration(e) {
 
     if (!name || !runId) return alert('Lengkapi data!');
 
-    // Req 7: Cek Duplikasi Spesifik
     const isDup = await checkDuplicateNames([name]);
     if (isDup) return;
 
@@ -286,7 +419,7 @@ async function handleRunRegistration(e) {
 }
 
 // ==========================================
-// FITUR 7: VALIDASI DUPLIKASI NAMA (Req 7)
+// VALIDASI DUPLIKASI
 // ==========================================
 async function checkDuplicateNames(namesToCheck) {
     if (!namesToCheck || namesToCheck.length === 0) return false;
@@ -310,7 +443,7 @@ async function checkDuplicateNames(namesToCheck) {
 }
 
 // ==========================================
-// FITUR GALERI & LIGHTBOX (Opsi C)
+// GALERI
 // ==========================================
 async function loadGallery() {
     const container = document.getElementById('gallery-container');
@@ -341,7 +474,7 @@ async function loadGallery() {
 }
 
 // ==========================================
-// FITUR KAMUS HASH (Opsi C)
+// KAMUS HASH
 // ==========================================
 async function loadKamusHash() {
     const container = document.getElementById('kamus-container');
@@ -365,23 +498,15 @@ async function loadKamusHash() {
     }
 }
 
-function openKamusEditor() {
-    // Logika untuk membuka editor kamus (admin only)
-    alert('Fitur edit kamus hanya tersedia untuk admin. Pastikan Anda sudah login sebagai admin.');
-    // Di sini Anda bisa menambahkan modal editor atau redirect ke halaman admin
-}
-
 // ==========================================
-// FITUR ULTAH MEMBER (Opsi C)
+// ULTAH MEMBER (Admin Only)
 // ==========================================
 async function loadUltahMembers() {
     const container = document.getElementById('ultah-container');
     if (!container) return;
 
-    const currentMonth = new Date().getMonth() + 1; // 1-12
+    const currentMonth = new Date().getMonth() + 1;
     
-    // Query untuk member yang lahir di bulan ini
-    // Asumsi kolom tanggal_lahir bertipe DATE
     const { data, error } = await supabase
         .from('people')
         .select('name, tanggal_lahir, phone')
@@ -393,7 +518,6 @@ async function loadUltahMembers() {
         return;
     }
 
-    // Filter bulan ini di JavaScript (karena Supabase tidak mendukung EXTRACT langsung di query sederhana)
     const ultahMembers = data.filter(m => {
         if (!m.tanggal_lahir) return false;
         const birthDate = new Date(m.tanggal_lahir);
@@ -430,7 +554,7 @@ function sendWishWhatsApp(name, phone) {
 }
 
 // ==========================================
-// FITUR REKAP WHATSAPP (Opsi C)
+// REKAP WA (Admin Only)
 // ==========================================
 async function generateRekapWA(type) {
     const resultContainer = document.getElementById('rekap-result');
@@ -441,7 +565,6 @@ async function generateRekapWA(type) {
     rekapText.innerText = 'Memuat data...';
 
     try {
-        // Ambil run terdekat
         const today = new Date().toISOString().split('T')[0];
         const { data: nextRun } = await supabase
             .from('runs')
@@ -476,7 +599,6 @@ async function generateRekapWA(type) {
                 rekapMessage += 'Belum ada yang mendaftar.';
             }
         } else if (type === 'hadir') {
-            // Ambil attendances yang scan_date = tanggal run
             const { data: attendances } = await supabase
                 .from('attendances')
                 .select('people_id, people(name)')
@@ -501,7 +623,7 @@ async function generateRekapWA(type) {
 }
 
 // ==========================================
-// FITUR LOGS (Opsi C)
+// LOGS (Admin Only)
 // ==========================================
 async function loadLogs() {
     const tableBody = document.getElementById('logs-table-body');
@@ -534,16 +656,13 @@ async function loadLogs() {
 }
 
 // ==========================================
-// FITUR QR SCANNER (Req 13)
+// QR SCANNER
 // ==========================================
 let html5QrcodeScanner = null;
 
 function initQRScanner() {
     const scannerContainer = document.getElementById('qr-reader');
-    if (!scannerContainer) {
-        alert('Container QR Reader tidak ditemukan di halaman ini.');
-        return;
-    }
+    if (!scannerContainer) return;
 
     if (html5QrcodeScanner) {
         html5QrcodeScanner.clear();
@@ -555,20 +674,13 @@ function initQRScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (qrCodeMessage) => {
-            console.log("QR Terdeteksi:", qrCodeMessage);
             await processAttendance(qrCodeMessage);
-            
-            html5QrcodeScanner.stop().then(() => {
-                // Optional: auto close modal after scan
-                // closeScannerModal();
-            }).catch(err => console.error("Gagal stop scanner:", err));
+            html5QrcodeScanner.stop().catch(console.error);
         },
-        (errorMessage) => {
-            // Ignore scan errors
-        }
+        () => {}
     ).catch((err) => {
         console.error("Gagal memulai kamera:", err);
-        alert("Gagal mengakses kamera. Pastikan izin kamera diberikan dan Anda menggunakan HTTPS atau localhost.");
+        alert("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
     });
 }
 
@@ -597,8 +709,6 @@ async function processAttendance(qrToken) {
         }
     } else {
         alert(`Absensi berhasil untuk ${member.name}!`);
-        // Optional: update attendance_count
-        // await supabase.rpc('increment_attendance', { p_id: member.id });
     }
 }
 
@@ -611,7 +721,7 @@ function closeScannerModal() {
 }
 
 // ==========================================
-// FITUR ID CARD (Req 13)
+// ID CARD
 // ==========================================
 async function downloadIDCard(elementId, memberName) {
     const element = document.getElementById(elementId);
@@ -630,13 +740,13 @@ async function downloadIDCard(elementId, memberName) {
 }
 
 // ==========================================
-// HELPER FUNCTIONS
+// HELPERS
 // ==========================================
 function generateToken() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// Expose functions ke window agar bisa dipanggil dari onclick di HTML
+// Expose ke window
 window.loadFutureHares = loadFutureHares;
 window.downloadIDCard = downloadIDCard;
 window.deleteKasTransaction = deleteKasTransaction;
@@ -646,4 +756,6 @@ window.openLightbox = openLightbox;
 window.closeLightbox = closeLightbox;
 window.sendWishWhatsApp = sendWishWhatsApp;
 window.generateRekapWA = generateRekapWA;
-window.openKamusEditor = openKamusEditor;
+window.logoutAdmin = logoutAdmin;
+window.isAdminLoggedIn = isAdminLoggedIn;
+window.handleLogin = handleLogin;
