@@ -1,8 +1,23 @@
 /**
- * Hitman Pekanbaru Hashing Club - Main Application Logic (FINAL v3)
+ * Hitman Pekanbaru Hashing Club - Main Application Logic (FINAL v4)
  * File: js/app.js
- * Fix: signInWithPassword error, data tidak muncul, auth flow
+ * Fix: Menggunakan window.supabaseClient untuk menghindari conflicts
  */
+
+// ==========================================
+// ALIAS SUPABASE CLIENT
+// ==========================================
+// Ambil dari window.supabaseClient yang dibuat di config.js
+const supabase = window.supabaseClient;
+
+// Verifikasi
+if (!supabase) {
+    console.error('❌ FATAL: supabase client tidak tersedia. Cek config.js');
+    alert('Error: Supabase tidak terinisialisasi. Buka Console (F12) untuk detail.');
+} else if (!supabase.auth) {
+    console.error('❌ FATAL: supabase.auth tidak tersedia');
+    alert('Error: Supabase Auth tidak tersedia. Cek anon key di config.js');
+}
 
 // ==========================================
 // AUTH STATE
@@ -14,30 +29,17 @@ let isAdminUser = false;
 // INISIALISASI
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Hitman Hash App FINAL v3 Starting...');
+    console.log('🚀 Hitman Hash App FINAL v4 Starting...');
 
-    // Verifikasi supabase client tersedia
-    if (typeof supabase === 'undefined' || !supabase) {
-        console.error('❌ FATAL: supabase client undefined. Cek config.js dan anon key.');
-        alert('Error: Supabase tidak terinisialisasi. Cek console untuk detail.');
+    if (!supabase) {
+        console.error('❌ App stopped: supabase not available');
         return;
     }
 
-    if (!supabase.auth) {
-        console.error('❌ FATAL: supabase.auth undefined. Pastikan CDN Supabase v2 sudah di-load.');
-        alert('Error: Supabase Auth tidak tersedia. Cek console untuk detail.');
-        return;
-    }
+    console.log('✅ Supabase client ready. Auth:', !!supabase.auth);
 
-    console.log('✅ Supabase client ready. Auth available:', !!supabase.auth);
-
-    // Init auth listener
     await initAuthListener();
-
-    // Init event listeners
     initEventListeners();
-
-    // Load public data
     await loadPublicData();
 
     console.log('✅ App initialization complete.');
@@ -58,7 +60,6 @@ async function initAuthListener() {
             console.log('ℹ️ No active session.');
         }
 
-        // Listen auth changes
         supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('🔄 Auth event:', event);
             if (event === 'SIGNED_IN' && session) {
@@ -140,6 +141,10 @@ async function handleLogin(e) {
     try {
         console.log('🔐 Attempting login for:', email);
 
+        if (!supabase.auth || typeof supabase.auth.signInWithPassword !== 'function') {
+            throw new Error('Supabase Auth tidak tersedia. Cek config.js');
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password
@@ -191,11 +196,9 @@ function isAdminLoggedIn() {
 // EVENT LISTENERS
 // ==========================================
 function initEventListeners() {
-    // Login Form
     const loginForm = document.getElementById('form-login');
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
 
-    // Upload Excel
     const uploadBtn = document.getElementById('btn-upload-excel');
     const fileInput = document.getElementById('excel-file-input');
     if (uploadBtn && fileInput) {
@@ -203,25 +206,20 @@ function initEventListeners() {
         fileInput.addEventListener('change', handleExcelUpload);
     }
 
-    // Export
     attachExportListeners('member');
     attachExportListeners('kas');
 
-    // Run Registration
     const runForm = document.getElementById('form-run-registration');
     if (runForm) runForm.addEventListener('submit', handleRunRegistration);
 
-    // Rekap WA
     const btnRekapDaftar = document.getElementById('btn-rekap-daftar');
     const btnRekapHadir = document.getElementById('btn-rekap-hadir');
     if (btnRekapDaftar) btnRekapDaftar.addEventListener('click', () => generateRekapWA('daftar'));
     if (btnRekapHadir) btnRekapHadir.addEventListener('click', () => generateRekapWA('hadir'));
 
-    // Scanner
     const btnScanner = document.getElementById('btn-open-scanner');
     if (btnScanner) btnScanner.addEventListener('click', openScannerModal);
 
-    // Copy Rekap
     const btnCopy = document.getElementById('btn-copy-rekap');
     if (btnCopy) {
         btnCopy.addEventListener('click', () => {
@@ -298,9 +296,6 @@ async function loadFutureHares() {
     }
 }
 
-// ==========================================
-// KUNCI RUN TERDEKAT
-// ==========================================
 async function lockRunRegistration() {
     const selectDropdown = document.getElementById('run-select');
     if (!selectDropdown) return;
@@ -348,9 +343,6 @@ async function handleRunRegistration(e) {
     else { alert('Berhasil daftar run!'); e.target.reset(); }
 }
 
-// ==========================================
-// VALIDASI DUPLIKASI
-// ==========================================
 async function checkDuplicateNames(namesToCheck) {
     if (!namesToCheck || namesToCheck.length === 0) return false;
     try {
@@ -371,9 +363,6 @@ async function checkDuplicateNames(namesToCheck) {
     }
 }
 
-// ==========================================
-// GALERI
-// ==========================================
 async function loadGallery() {
     const container = document.getElementById('gallery-container');
     if (!container) return;
@@ -405,9 +394,6 @@ async function loadGallery() {
     }
 }
 
-// ==========================================
-// KAMUS HASH
-// ==========================================
 async function loadKamusHash() {
     const container = document.getElementById('kamus-container');
     if (!container) return;
@@ -433,9 +419,6 @@ async function loadKamusHash() {
     }
 }
 
-// ==========================================
-// UPLOAD EXCEL
-// ==========================================
 async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -476,9 +459,6 @@ async function handleExcelUpload(event) {
     reader.readAsArrayBuffer(file);
 }
 
-// ==========================================
-// EXPORT
-// ==========================================
 function attachExportListeners(type) {
     const btnE = document.getElementById(`btn-export-${type}-excel`);
     const btnP = document.getElementById(`btn-export-${type}-pdf`);
@@ -512,9 +492,6 @@ async function exportData(type, format) {
     }
 }
 
-// ==========================================
-// KAS
-// ==========================================
 async function deleteKasTransaction(id) {
     if (!confirm('Hapus transaksi? Iuran akan kembali ke Belum Bayar.')) return;
     const { error } = await supabase.from('kas_transactions').delete().eq('id', id);
@@ -522,9 +499,6 @@ async function deleteKasTransaction(id) {
     else alert('Dihapus. Iuran otomatis terupdate.');
 }
 
-// ==========================================
-// ULTAH
-// ==========================================
 async function loadUltahMembers() {
     const container = document.getElementById('ultah-container');
     if (!container) return;
@@ -555,9 +529,6 @@ function sendWishWhatsApp(name, phone) {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// ==========================================
-// REKAP WA
-// ==========================================
 async function generateRekapWA(type) {
     const rc = document.getElementById('rekap-result');
     const rt = document.getElementById('rekap-text');
@@ -585,9 +556,6 @@ async function generateRekapWA(type) {
     } catch (err) { rt.innerText = 'Error: ' + err.message; }
 }
 
-// ==========================================
-// LOGS
-// ==========================================
 async function loadLogs() {
     const tb = document.getElementById('logs-table-body');
     if (!tb) return;
@@ -599,9 +567,6 @@ async function loadLogs() {
     } catch (err) { console.error(err); }
 }
 
-// ==========================================
-// QR SCANNER
-// ==========================================
 let html5QrcodeScanner = null;
 
 function initQRScanner() {
@@ -631,9 +596,6 @@ function closeScannerModal() {
     html5QrcodeScanner?.stop().catch(() => {});
 }
 
-// ==========================================
-// ID CARD
-// ==========================================
 async function downloadIDCard(elId, name) {
     const el = document.getElementById(elId);
     if (!el) return;
@@ -644,14 +606,10 @@ async function downloadIDCard(elId, name) {
     a.click();
 }
 
-// ==========================================
-// HELPERS
-// ==========================================
 function generateToken() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// Expose to window
 window.logoutAdmin = logoutAdmin;
 window.isAdminLoggedIn = isAdminLoggedIn;
 window.handleLogin = handleLogin;
