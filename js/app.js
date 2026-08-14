@@ -1,6 +1,5 @@
 /* =====================================================================
-   HITMAN PEKANBARU HASHING CLUB - js/app.js (VERSI 5 - FINAL)
-   Fix: cek admin langsung setelah login + anti-deadlock onAuthStateChange
+   HITMAN PEKANBARU HASHING CLUB - js/app.js (VERSI 6 - FINAL)
    ===================================================================== */
 (function () {
   'use strict';
@@ -11,12 +10,17 @@
     alert('Database belum siap. Refresh halaman.');
     return;
   }
-
-  console.log('✅ [app.js] Supabase siap! Memulai aplikasi...');
+  console.log('✅ [app.js] Supabase siap!');
 
   var SUPABASE_URL = 'https://awpcrceoxddyltasznht.supabase.co';
   var GALLERY_BUCKET = 'gallery-photos';
   var RUNS_BUCKET = 'run-photos';
+
+  var currentUser = null;
+  var isAdminUser = false;
+  var lastAdminError = '';
+  var nearestRunId = null;
+  var detailRunId = null;
 
   // ===== Helpers =====
   function buildPublicUrl(bucket, path) {
@@ -24,46 +28,34 @@
     if (path.startsWith('http')) return path;
     return SUPABASE_URL + '/storage/v1/object/public/' + bucket + '/' + path;
   }
-
   function escapeHtml(s) {
     if (s == null) return '';
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-
   function todayISO() { return new Date().toISOString().split('T')[0]; }
-
   function formatTanggal(d) {
     if (!d) return '-';
-    try {
-      return new Date(d).toLocaleDateString('id-ID', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-      });
-    } catch (e) { return d; }
+    try { return new Date(d).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+    catch (e) { return d; }
   }
-
+  function formatRupiah(n) {
+    var v = Number(n || 0);
+    return 'Rp ' + v.toLocaleString('id-ID');
+  }
   function genToken() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   }
 
-  // ===== State =====
-  var currentUser = null;
-  var isAdminUser = false;
-  var lastAdminError = '';
-
-  // =====================================================================
-  // INISIALISASI
-  // =====================================================================
+  // ===== Init =====
   document.addEventListener('DOMContentLoaded', async function () {
     await initAuth();
     bindEvents();
     await loadPublic();
   });
 
-  // =====================================================================
-  // AUTH (FIX v5)
-  // =====================================================================
+  // ===== Auth =====
   async function initAuth() {
     try {
       var sess = await sb.auth.getSession();
@@ -71,52 +63,24 @@
         currentUser = sess.data.session.user;
         await checkAdmin(currentUser.id);
       }
-
-      // Anti-deadlock: semua kerja async dibungkus setTimeout
       sb.auth.onAuthStateChange(function (event, session) {
         if (event === 'SIGNED_IN' && session) {
-          setTimeout(async function () {
-            currentUser = session.user;
-            await checkAdmin(session.user.id);
-          }, 0);
+          setTimeout(async function () { currentUser = session.user; await checkAdmin(session.user.id); }, 0);
         } else if (event === 'SIGNED_OUT') {
-          setTimeout(function () {
-            currentUser = null;
-            isAdminUser = false;
-            updateUI();
-          }, 0);
+          setTimeout(function () { currentUser = null; isAdminUser = false; updateUI(); }, 0);
         }
       });
-    } catch (err) {
-      console.error('❌ initAuth:', err);
-    }
+    } catch (err) { console.error('❌ initAuth:', err); }
   }
 
   async function checkAdmin(userId) {
     lastAdminError = '';
     try {
-      var res = await sb.from('admin_profiles')
-        .select('user_id, role')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (res.error) {
-        lastAdminError = 'Query admin_profiles gagal: ' + res.error.message;
-        console.error('❌ checkAdmin query error:', res.error.message);
-        isAdminUser = false;
-      } else if (res.data) {
-        isAdminUser = true;
-        console.log('✅ User terverifikasi sebagai ADMIN.');
-      } else {
-        isAdminUser = false;
-        lastAdminError = 'Tidak ada baris untuk user ini di tabel admin_profiles. Jalankan SQL pendaftaran admin.';
-        console.warn('⚠️ User BUKAN admin (tidak ada di admin_profiles).');
-      }
-    } catch (e) {
-      isAdminUser = false;
-      lastAdminError = e.message;
-      console.error('❌ checkAdmin exception:', e);
-    }
+      var res = await sb.from('admin_profiles').select('user_id, role').eq('user_id', userId).maybeSingle();
+      if (res.error) { lastAdminError = 'Query admin_profiles gagal: ' + res.error.message; isAdminUser = false; }
+      else if (res.data) { isAdminUser = true; }
+      else { isAdminUser = false; lastAdminError = 'Tidak ada baris untuk user ini di admin_profiles.'; }
+    } catch (e) { isAdminUser = false; lastAdminError = e.message; }
     updateUI();
   }
 
@@ -144,35 +108,23 @@
     var password = document.getElementById('login-password').value;
     var errDiv = document.getElementById('login-error');
     var btn = document.getElementById('btn-login-submit');
-
     errDiv?.classList.add('hidden');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memproses...'; }
-
     try {
       var res = await sb.auth.signInWithPassword({ email: email, password: password });
       if (res.error) throw res.error;
-
-      // FIX v5: cek admin LANGSUNG di sini, tidak menunggu event
       currentUser = res.data.user;
       await checkAdmin(currentUser.id);
-
       document.getElementById('login-modal').classList.remove('active');
       document.getElementById('form-login').reset();
-
       if (isAdminUser) {
         alert('Login berhasil! Selamat datang, Admin.');
-        setTimeout(function () {
-          document.getElementById('section-members')?.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
+        setTimeout(function () { document.getElementById('section-members')?.scrollIntoView({ behavior: 'smooth' }); }, 300);
       } else {
-        alert('Login berhasil, tetapi akun ini BELUM terdaftar sebagai admin.\n\nDetail: ' + lastAdminError + '\n\nSolusi: jalankan SQL pendaftaran admin di Supabase SQL Editor.');
+        alert('Login berhasil, tetapi akun ini BELUM terdaftar sebagai admin.\n\nDetail: ' + lastAdminError);
       }
     } catch (err) {
-      console.error('❌ Login gagal:', err);
-      if (errDiv) {
-        errDiv.classList.remove('hidden');
-        errDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>' + escapeHtml(err.message || 'Login gagal');
-      }
+      if (errDiv) { errDiv.classList.remove('hidden'); errDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>' + escapeHtml(err.message || 'Login gagal'); }
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Masuk'; }
     }
@@ -181,18 +133,14 @@
   async function logoutAdmin() {
     if (!confirm('Logout?')) return;
     await sb.auth.signOut();
-    currentUser = null;
-    isAdminUser = false;
+    currentUser = null; isAdminUser = false;
     updateUI();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-
   window.logoutAdmin = logoutAdmin;
   window.isAdminLoggedIn = function () { return isAdminUser && !!currentUser; };
 
-  // =====================================================================
-  // EVENTS
-  // =====================================================================
+  // ===== Events =====
   function bindEvents() {
     document.getElementById('form-login')?.addEventListener('submit', handleLogin);
 
@@ -207,32 +155,33 @@
     attachExport('kas');
 
     document.getElementById('form-run-registration')?.addEventListener('submit', handleRunReg);
+    document.getElementById('form-add-member')?.addEventListener('submit', handleAddMember);
+    document.getElementById('form-add-kas')?.addEventListener('submit', handleAddKas);
+    document.getElementById('form-edit-member')?.addEventListener('submit', saveEditMember);
 
     document.getElementById('btn-rekap-daftar')?.addEventListener('click', function () { rekapWA('daftar'); });
     document.getElementById('btn-rekap-hadir')?.addEventListener('click', function () { rekapWA('hadir'); });
     document.getElementById('btn-copy-rekap')?.addEventListener('click', function () {
-      var t = document.getElementById('rekap-text').innerText;
-      navigator.clipboard.writeText(t).then(function () { alert('Rekap di-copy!'); });
+      navigator.clipboard.writeText(document.getElementById('rekap-text').innerText).then(function () { alert('Rekap di-copy!'); });
     });
 
     document.getElementById('btn-open-scanner')?.addEventListener('click', openScanner);
 
-    document.getElementById('form-edit-member')?.addEventListener('submit', saveEditMember);
+    // Default tanggal kas = hari ini
+    var kt = document.getElementById('kas-tanggal');
+    if (kt) { kt.value = todayISO(); kt.max = todayISO(); }
   }
 
-  // =====================================================================
-  // PUBLIC DATA
-  // =====================================================================
+  // ===== Public =====
   async function loadPublic() {
-    await Promise.allSettled([loadRuns(), lockRun(), loadGallery(), loadKamus()]);
+    await Promise.allSettled([loadNearestRun(), loadHareList(), loadGallery(), loadKamus()]);
   }
-
   async function loadAdmin() {
-    await Promise.allSettled([loadMembersTable(), loadUltah(), loadLogs()]);
+    await Promise.allSettled([loadMembersTable(), loadKas(), loadUltah(), loadLogs()]);
   }
 
-  // ---------- JADWAL RUN ----------
-  async function loadRuns() {
+  // ---------- RUN TERDEKAT (1 card) ----------
+  async function loadNearestRun() {
     var c = document.getElementById('run-list-container');
     if (!c) return;
     try {
@@ -241,89 +190,141 @@
         .eq('status', 'published')
         .gte('tanggal_acara', todayISO())
         .order('tanggal_acara', { ascending: true })
-        .limit(6);
+        .limit(1);
       if (res.error) throw res.error;
       var data = res.data || [];
       if (!data.length) {
-        c.innerHTML = '<p class="text-gray-500 col-span-2 text-center py-8">Belum ada jadwal run minggu ini.</p>';
+        nearestRunId = null;
+        c.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada jadwal run minggu ini.</p>';
         return;
       }
-      c.innerHTML = data.map(function (r) {
-        var img = r.foto_path ? '<img src="' + buildPublicUrl(RUNS_BUCKET, r.foto_path) + '" class="w-full h-32 object-cover rounded mb-3">' : '';
-        return '<div class="bg-hash-light p-4 rounded-lg border border-green-200 shadow-sm hover:shadow-md transition">'
-          + img
-          + '<div class="flex justify-between items-start mb-2">'
-          + '<h4 class="font-bold text-hash-green text-lg">' + escapeHtml(r.nama) + '</h4>'
-          + '<span class="bg-hash-amber text-white text-xs px-2 py-1 rounded-full">Run #' + (r.run_number || '') + '</span>'
-          + '</div>'
-          + '<p class="text-sm text-gray-600 mb-1"><i class="fas fa-calendar mr-2"></i>' + formatTanggal(r.tanggal_acara) + '</p>'
-          + '<p class="text-sm text-gray-600 mb-1"><i class="fas fa-map-marker-alt mr-2"></i>' + escapeHtml(r.lokasi || 'TBD') + '</p>'
-          + (r.deskripsi ? '<p class="text-sm text-gray-700 mt-2">' + escapeHtml(r.deskripsi) + '</p>' : '')
-          + '</div>';
-      }).join('');
+      var r = data[0];
+      nearestRunId = r.id;
+      c.innerHTML = runCard(r, true);
     } catch (err) {
-      console.error('loadRuns:', err);
-      c.innerHTML = '<p class="text-red-500 col-span-2">Error: ' + escapeHtml(err.message) + '</p>';
+      c.innerHTML = '<p class="text-red-500">Error: ' + escapeHtml(err.message) + '</p>';
     }
   }
 
-  async function lockRun() {
-    var sel = document.getElementById('run-select');
-    if (!sel) return;
+  // ---------- JADWAL HARE (semua mendatang) ----------
+  async function loadHareList() {
+    var c = document.getElementById('hare-list-container');
+    if (!c) return;
     try {
       var res = await sb.from('runs')
-        .select('id, nama, tanggal_acara, run_number')
+        .select('id, run_number, nama, foto_path, tanggal_acara, lokasi')
         .eq('status', 'published')
         .gte('tanggal_acara', todayISO())
         .order('tanggal_acara', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (res.error || !res.data) {
-        sel.innerHTML = '<option value="">Tidak ada run terdekat</option>';
+        .limit(30);
+      if (res.error) throw res.error;
+      var data = res.data || [];
+      if (!data.length) {
+        c.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Belum ada hare terdaftar.</p>';
         return;
       }
-      var r = res.data;
-      sel.innerHTML = '<option value="' + r.id + '" selected>#' + r.run_number + ' ' + escapeHtml(r.nama) + ' - ' + formatTanggal(r.tanggal_acara) + '</option>';
-      sel.disabled = true;
-      sel.classList.add('bg-gray-100', 'cursor-not-allowed');
-    } catch (err) { console.error('lockRun:', err); }
-  }
-
-  async function handleRunReg(e) {
-    e.preventDefault();
-    var nama = document.getElementById('reg-name').value.trim();
-    var runId = document.getElementById('run-select').value;
-    if (!nama || !runId) { alert('Lengkapi data!'); return; }
-    if (await checkDupRun(nama, runId)) return;
-    try {
-      var res = await sb.from('run_registrations').insert({
-        run_id: runId,
-        nama: nama,
-        tanggal: todayISO(),
-        tipe: 'single',
-        person_id: null
-      });
-      if (res.error) throw res.error;
-      alert('Berhasil daftar run!');
-      e.target.reset();
+      c.innerHTML = data.map(function (r) { return runCard(r, false); }).join('');
     } catch (err) {
-      alert('Gagal daftar: ' + err.message);
+      c.innerHTML = '<p class="text-red-500 col-span-full">Error: ' + escapeHtml(err.message) + '</p>';
     }
   }
 
-  async function checkDupRun(nama, runId) {
+  function runCard(r, big) {
+    var img = r.foto_path ? '<img src="' + buildPublicUrl(RUNS_BUCKET, r.foto_path) + '" class="w-full ' + (big ? 'h-56' : 'h-32') + ' object-cover rounded mb-3">' : '';
+    return '<div class="run-card bg-hash-light p-4 rounded-lg border border-green-200 shadow-sm hover:shadow-lg transition" onclick="openRunDetail(\'' + r.id + '\')">'
+      + img
+      + '<div class="flex justify-between items-start mb-2">'
+      + '<h4 class="font-bold text-hash-green ' + (big ? 'text-xl' : 'text-lg') + '">' + escapeHtml(r.nama) + '</h4>'
+      + '<span class="bg-hash-amber text-white text-xs px-2 py-1 rounded-full">Run #' + (r.run_number || '') + '</span>'
+      + '</div>'
+      + '<p class="text-sm text-gray-600 mb-1"><i class="fas fa-calendar mr-2"></i>' + formatTanggal(r.tanggal_acara) + '</p>'
+      + '<p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-2"></i>' + escapeHtml(r.lokasi || 'TBD') + '</p>'
+      + '<p class="text-xs text-hash-green mt-2 font-semibold"><i class="fas fa-hand-pointer mr-1"></i>Klik untuk detail & daftar</p>'
+      + '</div>';
+  }
+
+  // ---------- DETAIL RUN (modal besar + daftar) ----------
+  async function openRunDetail(id) {
     try {
-      var res = await sb.from('run_registrations')
-        .select('nama')
-        .eq('run_id', runId)
-        .ilike('nama', nama)
-        .limit(1);
-      if (res.data && res.data.length > 0) {
-        alert('Nama ' + nama + ' sudah terdaftar di run ini.');
-        return true;
+      var res = await sb.from('runs').select('*').eq('id', id).maybeSingle();
+      if (res.error || !res.data) { alert('Run tidak ditemukan'); return; }
+      var r = res.data;
+      detailRunId = r.id;
+
+      document.getElementById('rd-image').src = buildPublicUrl(RUNS_BUCKET, r.foto_path) || 'logo.png';
+      document.getElementById('rd-badge').innerText = 'Run #' + (r.run_number || '');
+      document.getElementById('rd-title').innerText = r.nama || '';
+      document.getElementById('rd-date').innerHTML = '<i class="fas fa-calendar mr-2"></i>' + formatTanggal(r.tanggal_acara);
+      document.getElementById('rd-location').innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>' + escapeHtml(r.lokasi || 'TBD');
+      document.getElementById('rd-desc').innerText = r.deskripsi || '';
+
+      // Kunci pendaftaran ke run terdekat
+      var isNearest = (nearestRunId === r.id);
+      document.getElementById('rd-reg-wrap').classList.toggle('hidden', !isNearest);
+      document.getElementById('rd-lock-note').classList.toggle('hidden', isNearest);
+
+      // Reset form
+      document.getElementById('form-run-registration').reset();
+      document.getElementById('rd-single-wrap').classList.remove('hidden');
+      document.getElementById('rd-group-wrap').classList.add('hidden');
+
+      document.getElementById('run-detail-modal').classList.add('active');
+    } catch (err) { alert('Error: ' + err.message); }
+  }
+  window.openRunDetail = openRunDetail;
+
+  function closeRunDetail() {
+    document.getElementById('run-detail-modal')?.classList.remove('active');
+  }
+  window.closeRunDetail = closeRunDetail;
+
+  // ---------- DAFTAR RUN (single / rombongan) ----------
+  async function handleRunReg(e) {
+    e.preventDefault();
+    if (!detailRunId) { alert('Pilih run terlebih dahulu'); return; }
+
+    var tipe = document.querySelector('input[name="rd-tipe"]:checked').value;
+    var names = [];
+    if (tipe === 'single') {
+      var n = document.getElementById('rd-single-name').value.trim();
+      if (n) names.push(n);
+    } else {
+      names = document.getElementById('rd-group-names').value
+        .split('\n').map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+    }
+    if (!names.length) { alert('Isi nama peserta terlebih dahulu!'); return; }
+
+    // Duplikat dalam batch
+    var seen = {};
+    var dupsInBatch = [];
+    names.forEach(function (n) {
+      var k = n.toLowerCase();
+      if (seen[k]) dupsInBatch.push(n);
+      seen[k] = true;
+    });
+    if (dupsInBatch.length) {
+      alert('Nama ' + dupsInBatch.join(', ') + ' sudah terdaftar (duplikat dalam input).');
+      return;
+    }
+
+    // Duplikat di database
+    try {
+      var chk = await sb.from('run_registrations').select('nama').eq('run_id', detailRunId).in('nama', names);
+      if (chk.data && chk.data.length) {
+        alert('Nama ' + chk.data.map(function (d) { return d.nama; }).join(', ') + ' sudah terdaftar.');
+        return;
       }
-      return false;
-    } catch (e) { return false; }
+
+      var rows = names.map(function (n) {
+        return { run_id: detailRunId, nama: n, tanggal: todayISO(), tipe: tipe, person_id: null };
+      });
+      var ins = await sb.from('run_registrations').insert(rows);
+      if (ins.error) throw ins.error;
+      alert('Berhasil mendaftarkan ' + rows.length + ' peserta (' + tipe + ')!');
+      closeRunDetail();
+    } catch (err) {
+      alert('Gagal daftar: ' + err.message);
+    }
   }
 
   // ---------- GALERI ----------
@@ -331,28 +332,18 @@
     var c = document.getElementById('gallery-container');
     if (!c) return;
     try {
-      var res = await sb.from('gallery')
-        .select('id, image_path, caption')
-        .order('created_at', { ascending: false })
-        .limit(12);
+      var res = await sb.from('gallery').select('id, image_path, caption').order('created_at', { ascending: false }).limit(12);
       if (res.error) throw res.error;
       var data = res.data || [];
-      if (!data.length) {
-        c.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Belum ada foto.</p>';
-        return;
-      }
+      if (!data.length) { c.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Belum ada foto.</p>'; return; }
       c.innerHTML = data.map(function (img) {
         var url = buildPublicUrl(GALLERY_BUCKET, img.image_path);
         var cap = escapeHtml(img.caption || 'Tanpa Judul');
         return '<div class="gallery-item bg-white rounded-lg overflow-hidden shadow-md" onclick="openLightbox(\'' + url + '\', \'' + cap.replace(/'/g, "\\'") + '\')">'
           + '<img src="' + url + '" alt="' + cap + '" class="w-full h-48 object-cover" loading="lazy">'
-          + '<div class="p-2 text-center text-sm text-gray-600 truncate">' + cap + '</div>'
-          + '</div>';
+          + '<div class="p-2 text-center text-sm text-gray-600 truncate">' + cap + '</div></div>';
       }).join('');
-    } catch (err) {
-      console.error('loadGallery:', err);
-      c.innerHTML = '<p class="text-red-500 col-span-full">Error: ' + escapeHtml(err.message) + '</p>';
-    }
+    } catch (err) { c.innerHTML = '<p class="text-red-500 col-span-full">Error: ' + escapeHtml(err.message) + '</p>'; }
   }
 
   // ---------- KAMUS ----------
@@ -360,30 +351,49 @@
     var c = document.getElementById('kamus-container');
     if (!c) return;
     try {
-      var res = await sb.from('kamus_hash')
-        .select('id, term, def')
-        .order('sort_order', { ascending: true })
-        .limit(100);
+      var res = await sb.from('kamus_hash').select('id, term, def').order('sort_order', { ascending: true }).limit(100);
       if (res.error) throw res.error;
       var data = res.data || [];
-      if (!data.length) {
-        c.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada kamus.</p>';
-        return;
-      }
-      c.innerHTML = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-3">'
-        + data.map(function (k) {
-          return '<div class="bg-hash-light p-3 rounded border-l-4 border-hash-green">'
-            + '<dt class="font-bold text-hash-green">' + escapeHtml(k.term) + '</dt>'
-            + '<dd class="text-sm text-gray-700 mt-1">' + escapeHtml(k.def) + '</dd>'
-            + '</div>';
-        }).join('')
-        + '</dl>';
+      if (!data.length) { c.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada kamus.</p>'; return; }
+      c.innerHTML = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-3">' + data.map(function (k) {
+        return '<div class="bg-hash-light p-3 rounded border-l-4 border-hash-green">'
+          + '<dt class="font-bold text-hash-green">' + escapeHtml(k.term) + '</dt>'
+          + '<dd class="text-sm text-gray-700 mt-1">' + escapeHtml(k.def) + '</dd></div>';
+      }).join('') + '</dl>';
     } catch (err) { console.error('loadKamus:', err); }
   }
 
-  // =====================================================================
-  // MANAJEMEN MEMBER
-  // =====================================================================
+  // ===== MEMBER: tambah manual =====
+  async function handleAddMember(e) {
+    e.preventDefault();
+    var nama = document.getElementById('am-nama').value.trim();
+    if (!nama) return;
+    try {
+      var dup = await sb.from('people').select('nama').ilike('nama', nama).limit(1);
+      if (dup.data && dup.data.length) { alert('Nama ' + nama + ' sudah terdaftar.'); return; }
+
+      var row = {
+        id: 'M' + Date.now(),
+        nama: nama,
+        hashname: document.getElementById('am-hashname').value.trim(),
+        phone: document.getElementById('am-phone').value.trim(),
+        size: document.getElementById('am-size').value,
+        tanggal_lahir: document.getElementById('am-tanggal_lahir').value || null,
+        type: document.getElementById('am-type').value,
+        status_member: 'active',
+        qr_token: genToken(),
+        attendance_count: 0,
+        registered_at: todayISO()
+      };
+      var ins = await sb.from('people').insert(row);
+      if (ins.error) throw ins.error;
+      alert('Member ' + nama + ' berhasil disimpan!');
+      e.target.reset();
+      await loadMembersTable();
+    } catch (err) { alert('Gagal simpan: ' + err.message); }
+  }
+
+  // ===== MEMBER: upload excel =====
   async function handleExcelUpload(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -396,9 +406,7 @@
         var json = XLSX.utils.sheet_to_json(sheet);
         var clean = json.map(function (r) {
           var lr = {};
-          Object.keys(r).forEach(function (k) {
-            lr[k.toLowerCase().replace(/\s/g, '_')] = r[k];
-          });
+          Object.keys(r).forEach(function (k) { lr[k.toLowerCase().replace(/\s/g, '_')] = r[k]; });
           return {
             id: (lr.id || 'M' + Date.now() + Math.floor(Math.random() * 1000)).toString(),
             nama: lr.nama || lr.name || '',
@@ -407,7 +415,7 @@
             size: lr.size || lr.ukuran || 'L',
             phone: lr.phone || lr.no_hp || '',
             type: lr.type || 'member',
-            status_member: lr.status_member || 'active',
+            status_member: 'active',
             qr_token: lr.qr_token || genToken(),
             attendance_count: 0,
             registered_at: todayISO()
@@ -417,43 +425,40 @@
 
         var names = clean.map(function (r) { return r.nama; });
         var dupRes = await sb.from('people').select('nama').in('nama', names);
-        if (dupRes.data && dupRes.data.length > 0) {
+        if (dupRes.data && dupRes.data.length) {
           alert('Nama ' + dupRes.data.map(function (m) { return m.nama; }).join(', ') + ' sudah terdaftar. Upload dibatalkan.');
           return;
         }
-
         var ins = await sb.from('people').insert(clean).select();
         if (ins.error) throw ins.error;
         alert('Berhasil upload ' + ins.data.length + ' member!');
         e.target.value = '';
-        if (isAdminUser) await loadMembersTable();
+        await loadMembersTable();
       } catch (err) { alert('Gagal: ' + err.message); }
     };
     reader.readAsArrayBuffer(file);
   }
 
+  // ===== MEMBER: tabel + edit =====
   async function loadMembersTable() {
     var body = document.getElementById('members-table-body');
     if (!body) return;
     try {
       var res = await sb.from('people')
-        .select('id, nama, hashname, phone, size, tanggal_lahir, type, status_member, attendance_count')
+        .select('id, nama, hashname, phone, size, attendance_count')
         .order('nama');
       if (res.error) throw res.error;
       var data = res.data || [];
-      if (!data.length) {
-        body.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Belum ada member.</td></tr>';
-        return;
-      }
+      if (!data.length) { body.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Belum ada member.</td></tr>'; return; }
       body.innerHTML = data.map(function (m) {
         return '<tr class="border-b hover:bg-gray-50">'
-          + '<td class="px-3 py-2 text-sm">' + escapeHtml(m.id) + '</td>'
+          + '<td class="px-3 py-2 text-xs">' + escapeHtml(m.id) + '</td>'
           + '<td class="px-3 py-2 text-sm font-semibold">' + escapeHtml(m.nama) + '</td>'
           + '<td class="px-3 py-2 text-sm">' + escapeHtml(m.hashname || '-') + '</td>'
           + '<td class="px-3 py-2 text-sm">' + escapeHtml(m.phone || '-') + '</td>'
           + '<td class="px-3 py-2 text-sm">' + escapeHtml(m.size || '-') + '</td>'
           + '<td class="px-3 py-2 text-sm">' + (m.attendance_count || 0) + '</td>'
-          + '<td class="px-3 py-2 text-sm"><button class="bg-hash-amber text-white px-3 py-1 rounded text-xs" onclick="openEditMember(\'' + m.id + '\')"><i class="fas fa-edit mr-1"></i>Edit</button></td>'
+          + '<td class="px-3 py-2"><button class="bg-hash-amber text-white px-3 py-1 rounded text-xs" onclick="openEditMember(\'' + m.id + '\')"><i class="fas fa-edit mr-1"></i>Edit</button></td>'
           + '</tr>';
       }).join('');
     } catch (err) {
@@ -480,10 +485,7 @@
     } catch (err) { alert('Error: ' + err.message); }
   }
   window.openEditMember = openEditMember;
-
-  function closeEditMember() {
-    document.getElementById('edit-member-modal')?.classList.remove('active');
-  }
+  function closeEditMember() { document.getElementById('edit-member-modal')?.classList.remove('active'); }
   window.closeEditMember = closeEditMember;
 
   async function saveEditMember(e) {
@@ -508,35 +510,115 @@
     } catch (err) { alert('Gagal update: ' + err.message); }
   }
 
-  // =====================================================================
-  // EXPORT
-  // =====================================================================
+  // ===== KAS BANK =====
+  async function loadKas() {
+    var body = document.getElementById('kas-table-body');
+    if (!body) return;
+    try {
+      var res = await sb.from('kas_transactions')
+        .select('id, tanggal, tipe, kategori, keterangan, jumlah')
+        .is('deleted_at', null)
+        .order('tanggal', { ascending: false })
+        .limit(100);
+      if (res.error) throw res.error;
+      var data = res.data || [];
+
+      var masuk = 0, keluar = 0;
+      data.forEach(function (t) {
+        var v = Number(t.jumlah || 0);
+        var s = String(t.tipe || '').toLowerCase();
+        if (s.indexOf('keluar') >= 0 || s.indexOf('out') >= 0) keluar += v;
+        else masuk += v;
+      });
+      document.getElementById('kas-total-masuk').innerText = formatRupiah(masuk);
+      document.getElementById('kas-total-keluar').innerText = formatRupiah(keluar);
+      document.getElementById('kas-saldo').innerText = formatRupiah(masuk - keluar);
+
+      if (!data.length) { body.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">Belum ada transaksi.</td></tr>'; return; }
+      body.innerHTML = data.map(function (t) {
+        var isOut = String(t.tipe || '').toLowerCase().indexOf('keluar') >= 0;
+        return '<tr class="border-b hover:bg-gray-50">'
+          + '<td class="px-3 py-2 text-sm">' + (t.tanggal || '-') + '</td>'
+          + '<td class="px-3 py-2"><span class="text-xs px-2 py-1 rounded-full ' + (isOut ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700') + '">' + escapeHtml(t.tipe || '-') + '</span></td>'
+          + '<td class="px-3 py-2 text-sm">' + escapeHtml(t.kategori || '-') + '</td>'
+          + '<td class="px-3 py-2 text-sm">' + escapeHtml(t.keterangan || '-') + '</td>'
+          + '<td class="px-3 py-2 text-sm font-semibold ' + (isOut ? 'text-red-600' : 'text-green-600') + '">' + formatRupiah(t.jumlah) + '</td>'
+          + '<td class="px-3 py-2"><button class="bg-red-500 text-white px-3 py-1 rounded text-xs" onclick="deleteKasTransaction(\'' + t.id + '\')"><i class="fas fa-trash mr-1"></i>Hapus</button></td>'
+          + '</tr>';
+      }).join('');
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-red-500">' + escapeHtml(err.message) + '</td></tr>';
+    }
+  }
+
+  async function handleAddKas(e) {
+    e.preventDefault();
+    var tanggal = document.getElementById('kas-tanggal').value;
+    if (!tanggal) { alert('Tanggal wajib diisi!'); return; }
+    if (tanggal > todayISO()) { alert('Tanggal tidak boleh melebihi hari ini!'); return; }
+    var row = {
+      tanggal: tanggal,
+      tipe: document.getElementById('kas-tipe').value,
+      kategori: document.getElementById('kas-kategori').value.trim(),
+      keterangan: document.getElementById('kas-keterangan').value.trim(),
+      jumlah: Number(document.getElementById('kas-jumlah').value),
+      member_id: null,
+      payment_id: null,
+      created_by: currentUser ? currentUser.id : null
+    };
+    try {
+      var ins = await sb.from('kas_transactions').insert(row);
+      if (ins.error) throw ins.error;
+      alert('Transaksi berhasil disimpan!');
+      e.target.reset();
+      document.getElementById('kas-tanggal').value = todayISO();
+      await loadKas();
+    } catch (err) { alert('Gagal simpan: ' + err.message); }
+  }
+
+  async function deleteKasTransaction(id) {
+    if (!confirm('Hapus transaksi ini? Iuran terkait akan otomatis kembali ke "Belum Bayar".')) return;
+    try {
+      var tr = await sb.from('kas_transactions').select('id, payment_id').eq('id', id).maybeSingle();
+      if (tr.error || !tr.data) throw new Error('Transaksi tidak ditemukan');
+      var paymentId = tr.data.payment_id;
+
+      var softDel = await sb.from('kas_transactions').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (softDel.error) throw softDel.error;
+
+      if (paymentId) {
+        var items = await sb.from('payment_items').select('bill_id').eq('payment_id', paymentId);
+        if (items.data && items.data.length) {
+          var billIds = items.data.map(function (i) { return i.bill_id; });
+          await sb.from('iuran_bills').update({ status: 'unpaid', paid_at: null, payment_id: null, updated_at: new Date().toISOString() }).in('id', billIds);
+        }
+        await sb.from('payments').update({ status: 'cancelled', kas_transaction_id: null, updated_at: new Date().toISOString() }).eq('id', paymentId);
+      }
+      alert('Transaksi dihapus. Iuran terkait direset ke "Belum Bayar".');
+      await loadKas();
+    } catch (err) { alert('Gagal hapus: ' + err.message); }
+  }
+  window.deleteKasTransaction = deleteKasTransaction;
+
+  // ===== EXPORT =====
   function attachExport(type) {
     document.getElementById('btn-export-' + type + '-excel')?.addEventListener('click', function () { doExport(type, 'excel'); });
     document.getElementById('btn-export-' + type + '-pdf')?.addEventListener('click', function () { doExport(type, 'pdf'); });
   }
-
   async function doExport(type, fmt) {
     var data = [], title = 'Data', cols = [];
     try {
       if (type === 'member') {
         var r = await sb.from('people').select('*').order('nama');
-        data = r.data || [];
-        title = 'Database_Member_Hitman';
+        data = r.data || []; title = 'Database_Member_Hitman';
         cols = ['id', 'nama', 'hashname', 'phone', 'size', 'tanggal_lahir', 'type', 'status_member', 'attendance_count'];
       } else {
-        var r = await sb.from('kas_transactions')
-          .select('*')
-          .is('deleted_at', null)
-          .order('tanggal', { ascending: false });
-        data = r.data || [];
-        title = 'Laporan_Kas_Bank';
+        var r = await sb.from('kas_transactions').select('*').is('deleted_at', null).order('tanggal', { ascending: false });
+        data = r.data || []; title = 'Laporan_Kas_Bank';
         cols = ['tanggal', 'tipe', 'kategori', 'keterangan', 'jumlah', 'member_id'];
       }
     } catch (err) { alert('Error ambil data: ' + err.message); return; }
-
     if (!data.length) { alert('Tidak ada data.'); return; }
-
     if (fmt === 'excel') {
       var ws = XLSX.utils.json_to_sheet(data, { header: cols });
       var wb = XLSX.utils.book_new();
@@ -545,8 +627,7 @@
     } else {
       var jsPDF = window.jspdf.jsPDF;
       var doc = new jsPDF();
-      doc.setFontSize(14);
-      doc.setTextColor(22, 101, 52);
+      doc.setFontSize(14); doc.setTextColor(22, 101, 52);
       doc.text(title.replace(/_/g, ' '), 14, 15);
       var rows = data.map(function (r) { return cols.map(function (c) { return r[c] != null ? String(r[c]) : '-'; }); });
       doc.autoTable({ head: [cols], body: rows, startY: 22, styles: { fontSize: 7 }, headStyles: { fillColor: [22, 101, 52] } });
@@ -554,53 +635,7 @@
     }
   }
 
-  // =====================================================================
-  // KAS (SOFT DELETE + CASCADE)
-  // =====================================================================
-  async function deleteKasTransaction(id) {
-    if (!confirm('Hapus transaksi ini? Iuran terkait akan otomatis kembali ke "Belum Bayar".')) return;
-    try {
-      var tr = await sb.from('kas_transactions').select('id, payment_id').eq('id', id).maybeSingle();
-      if (tr.error || !tr.data) throw new Error('Transaksi tidak ditemukan');
-      var paymentId = tr.data.payment_id;
-
-      var softDel = await sb.from('kas_transactions')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id);
-      if (softDel.error) throw softDel.error;
-
-      if (paymentId) {
-        var items = await sb.from('payment_items').select('bill_id').eq('payment_id', paymentId);
-        if (items.data && items.data.length > 0) {
-          var billIds = items.data.map(function (i) { return i.bill_id; });
-          await sb.from('iuran_bills')
-            .update({
-              status: 'unpaid',
-              paid_at: null,
-              payment_id: null,
-              updated_at: new Date().toISOString()
-            })
-            .in('id', billIds);
-        }
-        await sb.from('payments')
-          .update({
-            status: 'cancelled',
-            kas_transaction_id: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', paymentId);
-      }
-
-      alert('Transaksi dihapus (soft-delete). Iuran terkait sudah direset ke "Belum Bayar".');
-    } catch (err) {
-      alert('Gagal hapus: ' + err.message);
-    }
-  }
-  window.deleteKasTransaction = deleteKasTransaction;
-
-  // =====================================================================
-  // ULTAH
-  // =====================================================================
+  // ===== ULTAH =====
   async function loadUltah() {
     var c = document.getElementById('ultah-container');
     if (!c) return;
@@ -608,35 +643,23 @@
       var curMonth = new Date().getMonth() + 1;
       var res = await sb.from('people').select('nama, tanggal_lahir, phone').not('tanggal_lahir', 'is', null);
       if (res.error) throw res.error;
-      var data = (res.data || []).filter(function (m) {
-        return m.tanggal_lahir && (new Date(m.tanggal_lahir).getMonth() + 1 === curMonth);
-      });
-      if (!data.length) {
-        c.innerHTML = '<p class="text-gray-500 col-span-2 text-center py-8">Tidak ada ultah bulan ini.</p>';
-        return;
-      }
+      var data = (res.data || []).filter(function (m) { return m.tanggal_lahir && (new Date(m.tanggal_lahir).getMonth() + 1 === curMonth); });
+      if (!data.length) { c.innerHTML = '<p class="text-gray-500 col-span-2 text-center py-8">Tidak ada ultah bulan ini.</p>'; return; }
       c.innerHTML = data.map(function (m) {
         var d = new Date(m.tanggal_lahir);
         return '<div class="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-lg border border-pink-200 flex items-center justify-between">'
-          + '<div class="flex items-center gap-3">'
-          + '<div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center"><i class="fas fa-birthday-cake text-pink-500"></i></div>'
-          + '<div><h5 class="font-bold">' + escapeHtml(m.nama) + '</h5><p class="text-sm text-gray-600">' + d.getDate() + ' ' + d.toLocaleDateString('id-ID', { month: 'long' }) + '</p></div>'
-          + '</div>'
-          + '<button onclick="sendWish(\'' + escapeHtml(m.nama).replace(/'/g, "\\'") + '\',\'' + escapeHtml(m.phone || '') + '\')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm"><i class="fab fa-whatsapp mr-1"></i>Ucapan</button>'
-          + '</div>';
+          + '<div class="flex items-center gap-3"><div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center"><i class="fas fa-birthday-cake text-pink-500"></i></div>'
+          + '<div><h5 class="font-bold">' + escapeHtml(m.nama) + '</h5><p class="text-sm text-gray-600">' + d.getDate() + ' ' + d.toLocaleDateString('id-ID', { month: 'long' }) + '</p></div></div>'
+          + '<button onclick="sendWish(\'' + escapeHtml(m.nama).replace(/'/g, "\\'") + '\',\'' + escapeHtml(m.phone || '') + '\')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm"><i class="fab fa-whatsapp mr-1"></i>Ucapan</button></div>';
       }).join('');
     } catch (err) { console.error('loadUltah:', err); }
   }
-
   function sendWish(name, phone) {
-    var msg = 'Selamat Ulang Tahun ' + name + '! 🎂 On On! - Hitman Pekanbaru';
-    window.open('https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(msg), '_blank');
+    window.open('https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent('Selamat Ulang Tahun ' + name + '! 🎂 On On! - Hitman Pekanbaru'), '_blank');
   }
   window.sendWishWhatsApp = sendWish;
 
-  // =====================================================================
-  // REKAP WA
-  // =====================================================================
+  // ===== REKAP WA =====
   async function rekapWA(type) {
     var rc = document.getElementById('rekap-result');
     var rt = document.getElementById('rekap-text');
@@ -644,29 +667,21 @@
     rc.classList.remove('hidden');
     rt.innerText = 'Memuat...';
     try {
-      var runRes = await sb.from('runs')
-        .select('id, nama, tanggal_acara, run_number')
-        .eq('status', 'published')
-        .gte('tanggal_acara', todayISO())
-        .order('tanggal_acara')
-        .limit(1)
-        .maybeSingle();
+      var runRes = await sb.from('runs').select('id, nama, tanggal_acara, run_number')
+        .eq('status', 'published').gte('tanggal_acara', todayISO())
+        .order('tanggal_acara').limit(1).maybeSingle();
       if (!runRes.data) { rt.innerText = 'Tidak ada run mendatang.'; return; }
       var run = runRes.data;
       var msg = '*REKAP ' + type.toUpperCase() + ' RUN*\n#' + run.run_number + ' ' + run.nama + '\n' + formatTanggal(run.tanggal_acara) + '\n\n';
-
       if (type === 'daftar') {
-        var regs = await sb.from('run_registrations').select('nama').eq('run_id', run.id);
+        var regs = await sb.from('run_registrations').select('nama, tipe').eq('run_id', run.id);
         if (regs.data && regs.data.length) {
-          msg += 'Total: ' + regs.data.length + '\n' + regs.data.map(function (r, i) { return (i + 1) + '. ' + r.nama; }).join('\n');
+          msg += 'Total: ' + regs.data.length + '\n' + regs.data.map(function (r, i) { return (i + 1) + '. ' + r.nama + ' (' + (r.tipe || '-') + ')'; }).join('\n');
         } else msg += 'Belum ada pendaftar.';
       } else {
         var att = await sb.from('attendances').select('person_id, people:person_id(nama)').eq('tanggal', run.tanggal_acara);
         if (att.data && att.data.length) {
-          msg += 'Total: ' + att.data.length + '\n' + att.data.map(function (a, i) {
-            var n = (a.people && a.people.nama) || a.person_id || '?';
-            return (i + 1) + '. ' + n;
-          }).join('\n');
+          msg += 'Total: ' + att.data.length + '\n' + att.data.map(function (a, i) { return (i + 1) + '. ' + ((a.people && a.people.nama) || a.person_id || '?'); }).join('\n');
         } else msg += 'Belum ada kehadiran.';
       }
       rt.innerText = msg;
@@ -674,9 +689,7 @@
   }
   window.generateRekapWA = rekapWA;
 
-  // =====================================================================
-  // LOGS
-  // =====================================================================
+  // ===== LOGS =====
   async function loadLogs() {
     var tb = document.getElementById('logs-table-body');
     if (!tb) return;
@@ -684,39 +697,26 @@
       var res = await sb.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(30);
       if (res.error) throw res.error;
       var data = res.data || [];
-      if (!data.length) {
-        tb.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Belum ada log.</td></tr>';
-        return;
-      }
+      if (!data.length) { tb.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Belum ada log.</td></tr>'; return; }
       tb.innerHTML = data.map(function (l) {
-        var detail = (l.entity_type || '') + (l.entity_id ? ' #' + l.entity_id : '');
+        var detail = (l.entity_type || '') + (l.entity_id ? ' #' + String(l.entity_id).substring(0, 8) : '');
         return '<tr class="border-b hover:bg-gray-50">'
           + '<td class="px-3 py-2 text-xs">' + new Date(l.created_at).toLocaleString('id-ID') + '</td>'
           + '<td class="px-3 py-2 text-sm font-semibold">' + escapeHtml(l.action || '-') + '</td>'
-          + '<td class="px-3 py-2 text-xs">' + escapeHtml((l.actor_user_id || '').substring(0, 8)) + '…</td>'
-          + '<td class="px-3 py-2 text-xs">' + escapeHtml(detail) + '</td>'
-          + '</tr>';
+          + '<td class="px-3 py-2 text-xs">' + escapeHtml(String(l.actor_user_id || '').substring(0, 8)) + '…</td>'
+          + '<td class="px-3 py-2 text-xs">' + escapeHtml(detail) + '</td></tr>';
       }).join('');
     } catch (err) { console.error('loadLogs:', err); }
   }
 
-  // =====================================================================
-  // QR SCANNER
-  // =====================================================================
+  // ===== SCANNER =====
   var scanner = null;
-
   function openScanner() {
-    var modal = document.getElementById('scanner-modal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('scanner-modal').classList.add('active');
     if (scanner) { try { scanner.clear(); } catch (e) {} }
     scanner = new Html5Qrcode('qr-reader');
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: 250 },
-      async function (qr) {
-        await processAttendance(qr);
-        try { scanner.stop(); } catch (e) {}
-      },
+    scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 },
+      async function (qr) { await processAttendance(qr); try { scanner.stop(); } catch (e) {} },
       function () {}
     ).catch(function (err) { alert('Gagal akses kamera: ' + err); });
   }
@@ -724,94 +724,41 @@
 
   async function processAttendance(qrToken) {
     try {
-      await sb.from('scan_logs').insert({
-        qr_token: qrToken, scan_date: todayISO(),
-        result: 'started', message: 'scan initiated'
-      });
-
-      var mRes = await sb.from('people')
-        .select('id, nama, attendance_count')
-        .eq('qr_token', qrToken)
-        .maybeSingle();
-
+      await sb.from('scan_logs').insert({ qr_token: qrToken, scan_date: todayISO(), result: 'started', message: 'scan initiated' });
+      var mRes = await sb.from('people').select('id, nama, attendance_count').eq('qr_token', qrToken).maybeSingle();
       if (!mRes.data) {
-        await sb.from('scan_logs').insert({
-          qr_token: qrToken, scan_date: todayISO(),
-          result: 'invalid', message: 'token not found'
-        });
+        await sb.from('scan_logs').insert({ qr_token: qrToken, scan_date: todayISO(), result: 'invalid', message: 'token not found' });
         alert('QR tidak valid!');
         return;
       }
       var member = mRes.data;
-
-      var dupCheck = await sb.from('attendances')
-        .select('id')
-        .eq('person_id', member.id)
-        .eq('tanggal', todayISO())
-        .limit(1);
-
-      if (dupCheck.data && dupCheck.data.length > 0) {
-        await sb.from('scan_logs').insert({
-          qr_token: qrToken, scan_date: todayISO(),
-          person_id: member.id, result: 'duplicate', message: 'already scanned today'
-        });
+      var dup = await sb.from('attendances').select('id').eq('person_id', member.id).eq('tanggal', todayISO()).limit(1);
+      if (dup.data && dup.data.length) {
+        await sb.from('scan_logs').insert({ qr_token: qrToken, scan_date: todayISO(), person_id: member.id, result: 'duplicate', message: 'already scanned today' });
         alert(member.nama + ' sudah absen hari ini!');
         return;
       }
-
-      var ins = await sb.from('attendances').insert({
-        person_id: member.id,
-        tanggal: todayISO(),
-        scanned_at: new Date().toISOString(),
-        keterangan: 'Hadir'
-      });
+      var ins = await sb.from('attendances').insert({ person_id: member.id, tanggal: todayISO(), scanned_at: new Date().toISOString(), keterangan: 'Hadir' });
       if (ins.error) throw ins.error;
-
-      await sb.from('people')
-        .update({ attendance_count: (member.attendance_count || 0) + 1 })
-        .eq('id', member.id);
-
-      await sb.from('scan_logs').insert({
-        qr_token: qrToken, scan_date: todayISO(),
-        person_id: member.id, result: 'success', message: 'attendance recorded'
-      });
-
+      await sb.from('people').update({ attendance_count: (member.attendance_count || 0) + 1 }).eq('id', member.id);
+      await sb.from('scan_logs').insert({ qr_token: qrToken, scan_date: todayISO(), person_id: member.id, result: 'success', message: 'attendance recorded' });
       alert('Absensi berhasil: ' + member.nama);
-    } catch (err) {
-      console.error('processAttendance:', err);
-      alert('Error absensi: ' + err.message);
-    }
+    } catch (err) { alert('Error absensi: ' + err.message); }
   }
 
   function closeScanner() {
-    var modal = document.getElementById('scanner-modal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('scanner-modal')?.classList.remove('active');
     if (scanner) try { scanner.stop(); } catch (e) {}
   }
   window.closeScannerModal = closeScanner;
 
-  // =====================================================================
-  // ID CARD & LIGHTBOX
-  // =====================================================================
-  async function downloadIDCard(elId, name) {
-    var el = document.getElementById(elId);
-    if (!el) return;
-    var canvas = await html2canvas(el, { scale: 2, useCORS: true });
-    var a = document.createElement('a');
-    a.download = 'ID_' + (name || 'card') + '.png';
-    a.href = canvas.toDataURL();
-    a.click();
-  }
-  window.downloadIDCard = downloadIDCard;
-
+  // ===== LIGHTBOX =====
   window.openLightbox = function (url, cap) {
     document.getElementById('lightbox-img').src = url;
     document.getElementById('lightbox-caption').innerText = cap || '';
     document.getElementById('lightbox-modal').classList.add('active');
   };
   window.closeLightbox = function (ev) {
-    if (!ev || ev.target.id === 'lightbox-modal') {
-      document.getElementById('lightbox-modal').classList.remove('active');
-    }
+    if (!ev || ev.target.id === 'lightbox-modal') document.getElementById('lightbox-modal').classList.remove('active');
   };
 })();
