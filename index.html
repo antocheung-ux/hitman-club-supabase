@@ -5,16 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hitman Pekanbaru Hashing Club</title>
     
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Libraries -->
+    <!-- Supabase JS SDK (WAJIB - Fix "supabase is not defined") -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
+    <!-- Custom Tailwind Config -->
     <script>
         tailwind.config = {
             theme: {
@@ -84,7 +91,9 @@
 </head>
 <body class="bg-hash-light text-gray-800 font-sans min-h-screen flex flex-col">
 
-    <!-- Navbar -->
+    <!-- ============================================ -->
+    <!-- NAVBAR -->
+    <!-- ============================================ -->
     <nav class="bg-hash-green shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
@@ -92,31 +101,36 @@
                 <h1 class="text-white text-xl md:text-2xl font-bold tracking-wide">Hitman Pekanbaru</h1>
             </div>
             <div class="flex items-center gap-3">
-                <!-- FIX #1: Back to Home pakai ./ bukan / -->
+                <!-- FIX: Back to Home pakai ./ bukan / -->
                 <a href="./" class="hidden md:flex items-center gap-2 bg-hash-amber hover:bg-amber-600 text-white px-4 py-2 rounded-lg shadow-md transition shine-effect">
                     <i class="fas fa-home"></i> Home
                 </a>
 
-                <!-- FIX #2: Tombol Login / Logout Admin -->
+                <!-- Tombol Login Admin (tampil jika belum login) -->
                 <button id="btn-login-nav" onclick="openLoginModal()" class="hidden md:flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition">
                     <i class="fas fa-sign-in-alt"></i> Login Admin
                 </button>
+
+                <!-- Tombol Logout (tampil jika sudah login) -->
                 <button id="btn-logout-nav" onclick="logoutAdmin()" class="hidden items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
 
+                <!-- Mobile menu toggle -->
                 <button id="menu-toggle" class="md:hidden text-white text-2xl">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
         </div>
+
         <!-- Mobile Menu -->
         <div id="mobile-menu" class="hidden md:hidden bg-hash-green border-t border-green-700 pb-3">
             <a href="./" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-home mr-2"></i> Home</a>
             <a href="#section-jadwal" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-calendar mr-2"></i> Jadwal Run</a>
             <a href="#section-galeri" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-images mr-2"></i> Galeri</a>
             <a href="#section-kamus" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-book mr-2"></i> Kamus Hash</a>
-            <!-- Admin menu items (hidden by default) -->
+            
+            <!-- Admin menu (hidden by default) -->
             <div id="mobile-admin-menu" class="hidden border-t border-green-700 mt-2 pt-2">
                 <a href="#section-admin" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-cog mr-2"></i> Panel Admin</a>
                 <a href="#section-rekap" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fab fa-whatsapp mr-2"></i> Rekap WA</a>
@@ -124,6 +138,7 @@
                 <a href="#section-logs" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-history mr-2"></i> Logs</a>
                 <button onclick="logoutAdmin()" class="block w-full text-left px-4 py-2 text-red-300 hover:bg-green-800"><i class="fas fa-sign-out-alt mr-2"></i> Logout</button>
             </div>
+
             <!-- Login button mobile -->
             <div id="mobile-login-btn">
                 <button onclick="openLoginModal()" class="block w-full text-left px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-sign-in-alt mr-2"></i> Login Admin</button>
@@ -131,7 +146,9 @@
         </div>
     </nav>
 
-    <!-- Ticker -->
+    <!-- ============================================ -->
+    <!-- TICKER -->
+    <!-- ============================================ -->
     <div class="bg-hash-brown text-white py-2 overflow-hidden whitespace-nowrap border-b-2 border-hash-amber">
         <div class="inline-block animate-ticker font-semibold">
             <i class="fas fa-bullhorn mr-2"></i> Selamat Datang di Website Resmi Hitman Pekanbaru Hashing Club! &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; 
@@ -140,7 +157,9 @@
         </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- ============================================ -->
+    <!-- MAIN CONTENT -->
+    <!-- ============================================ -->
     <main class="flex-grow container mx-auto px-4 py-8">
         
         <!-- Hero -->
@@ -175,7 +194,6 @@
                 </div>
                 <h3 class="text-xl font-bold text-hash-brown text-center mb-2">Panel Admin</h3>
                 <p class="text-gray-600 text-center text-sm mb-4">Kelola member, kas bank, dan export data.</p>
-                <!-- FIX #3: Tombol ini sekarang cek login dulu -->
                 <button onclick="goToAdminPanel()" class="w-full bg-hash-brown text-white py-2 rounded-lg hover:bg-yellow-900 transition shine-effect">Kelola Data</button>
             </div>
         </section>
@@ -240,13 +258,11 @@
         </section>
 
         <!-- ============================================ -->
-        <!-- FIX #3: ADMIN SECTIONS (Hidden by default) -->
-        <!-- Hanya tampil setelah login admin -->
+        <!-- ADMIN SECTIONS (Hidden - hanya tampil setelah login) -->
         <!-- ============================================ -->
-
-        <!-- Admin Header -->
         <div id="admin-sections" class="hidden">
             
+            <!-- Admin Header -->
             <div class="mb-8 p-4 bg-gradient-to-r from-hash-green to-hash-brown rounded-xl text-white">
                 <h3 class="text-2xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt"></i> Panel Administrator
@@ -379,6 +395,10 @@
 
     </main>
 
+    <!-- ============================================ -->
+    <!-- MODALS -->
+    <!-- ============================================ -->
+
     <!-- Modal QR Scanner -->
     <div id="scanner-modal" class="modal-overlay">
         <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -402,7 +422,7 @@
         </div>
     </div>
 
-    <!-- FIX #2: Modal Login Admin -->
+    <!-- Modal Login Admin -->
     <div id="login-modal" class="modal-overlay">
         <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl animate-slide-up">
             <div class="flex justify-between items-center mb-6">
@@ -430,7 +450,9 @@
         </div>
     </div>
 
-    <!-- Footer -->
+    <!-- ============================================ -->
+    <!-- FOOTER -->
+    <!-- ============================================ -->
     <footer class="bg-hash-green text-white mt-12 py-8 border-t-4 border-hash-amber">
         <div class="container mx-auto px-4 text-center">
             <img src="logo.png" alt="Logo" class="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-white animate-float">
@@ -455,10 +477,14 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
+    <!-- ============================================ -->
+    <!-- SCRIPTS -->
+    <!-- ============================================ -->
+    <!-- Urutan WAJIB: config.js dulu, baru app.js -->
     <script src="js/config.js"></script>
     <script src="js/app.js"></script>
     
+    <!-- UI Logic -->
     <script>
         // Mobile Menu
         document.getElementById('menu-toggle').addEventListener('click', function() {
