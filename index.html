@@ -9,7 +9,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Supabase + libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -21,12 +20,7 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        hash: {
-                            green: '#166534', amber: '#d97706',
-                            brown: '#78350f', light: '#fef3c7',
-                        }
-                    },
+                    colors: { hash: { green: '#166534', amber: '#d97706', brown: '#78350f', light: '#fef3c7' } },
                     animation: {
                         'float': 'float 3s ease-in-out infinite',
                         'ticker': 'ticker 20s linear infinite',
@@ -65,6 +59,7 @@
         .gallery-item:hover { transform: scale(1.05); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         #lightbox-img { max-width: 90vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
         section[id] { scroll-margin-top: 80px; }
+        .run-card { cursor: pointer; }
     </style>
 </head>
 <body class="bg-hash-light text-gray-800 font-sans min-h-screen flex flex-col">
@@ -77,26 +72,23 @@
             <h1 class="text-white text-xl md:text-2xl font-bold">Hitman Pekanbaru</h1>
         </a>
         <div class="flex items-center gap-3">
-            <a href="./" class="hidden md:flex items-center gap-2 bg-hash-amber hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition shine-effect">
-                <i class="fas fa-home"></i> Home
-            </a>
-            <button id="btn-login-nav" onclick="document.getElementById('login-modal').classList.add('active')" class="hidden md:flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition">
-                <i class="fas fa-sign-in-alt"></i> Login Admin
-            </button>
-            <button id="btn-logout-nav" onclick="logoutAdmin()" class="hidden items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
+            <a href="./" class="hidden md:flex items-center gap-2 bg-hash-amber hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition shine-effect"><i class="fas fa-home"></i> Home</a>
+            <a href="#section-hare" class="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition"><i class="fas fa-calendar-days"></i> Jadwal Hare</a>
+            <button id="btn-login-nav" onclick="document.getElementById('login-modal').classList.add('active')" class="hidden md:flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition"><i class="fas fa-sign-in-alt"></i> Login Admin</button>
+            <button id="btn-logout-nav" onclick="logoutAdmin()" class="hidden items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"><i class="fas fa-sign-out-alt"></i> Logout</button>
             <button id="menu-toggle" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
         </div>
     </div>
     <div id="mobile-menu" class="hidden md:hidden bg-hash-green border-t border-green-700 pb-3">
         <a href="./" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-home mr-2"></i> Home</a>
-        <a href="#section-jadwal" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-calendar mr-2"></i> Jadwal</a>
+        <a href="#section-jadwal" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-calendar mr-2"></i> Run Minggu Ini</a>
+        <a href="#section-hare" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-calendar-days mr-2"></i> Jadwal Hare</a>
         <a href="#section-galeri" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-images mr-2"></i> Galeri</a>
         <a href="#section-kamus" class="block px-4 py-2 text-white hover:bg-green-800"><i class="fas fa-book mr-2"></i> Kamus</a>
         <div id="mobile-admin-menu" class="hidden border-t border-green-700 mt-2 pt-2">
             <a href="#section-members" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-users mr-2"></i> Kelola Member</a>
-            <a href="#section-admin" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-cog mr-2"></i> Panel Admin</a>
+            <a href="#section-kas" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-money-bill-wave mr-2"></i> Kas Bank</a>
+            <a href="#section-admin" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-cog mr-2"></i> Export Data</a>
             <a href="#section-rekap" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fab fa-whatsapp mr-2"></i> Rekap WA</a>
             <a href="#section-ultah" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-birthday-cake mr-2"></i> Ultah</a>
             <a href="#section-logs" class="block px-4 py-2 text-amber-300 hover:bg-green-800"><i class="fas fa-history mr-2"></i> Logs</a>
@@ -127,71 +119,49 @@
     <!-- Quick Cards -->
     <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-slide-up">
         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-hash-green hover:shadow-xl transition">
-            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float">
-                <i class="fas fa-running text-3xl text-hash-green"></i>
-            </div>
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float"><i class="fas fa-running text-3xl text-hash-green"></i></div>
             <h3 class="text-xl font-bold text-hash-green text-center mb-2">Jadwal Run Minggu Ini</h3>
-            <p class="text-gray-600 text-center text-sm mb-4">Cek lokasi trail run terdekat.</p>
+            <p class="text-gray-600 text-center text-sm mb-4">Run terdekat & daftar peserta.</p>
             <button onclick="document.getElementById('section-jadwal').scrollIntoView({behavior:'smooth'})" class="w-full bg-hash-green text-white py-2 rounded-lg hover:bg-green-800 transition shine-effect">Lihat Jadwal</button>
         </div>
         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-hash-amber hover:shadow-xl transition">
-            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float" style="animation-delay:0.5s">
-                <i class="fas fa-qrcode text-3xl text-hash-amber"></i>
-            </div>
+            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float" style="animation-delay:0.5s"><i class="fas fa-qrcode text-3xl text-hash-amber"></i></div>
             <h3 class="text-xl font-bold text-hash-amber text-center mb-2">Absensi & ID Card</h3>
             <p class="text-gray-600 text-center text-sm mb-4">Scan QR Code untuk absen.</p>
             <button id="btn-open-scanner" class="w-full bg-hash-amber text-white py-2 rounded-lg hover:bg-amber-600 transition shine-effect">Buka Scanner</button>
         </div>
         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-hash-brown hover:shadow-xl transition">
-            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float" style="animation-delay:1s">
-                <i class="fas fa-user-shield text-3xl text-hash-brown"></i>
-            </div>
+            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-float" style="animation-delay:1s"><i class="fas fa-user-shield text-3xl text-hash-brown"></i></div>
             <h3 class="text-xl font-bold text-hash-brown text-center mb-2">Panel Admin</h3>
             <p class="text-gray-600 text-center text-sm mb-4">Kelola member, kas bank, export.</p>
-            <button onclick="if(isAdminLoggedIn()){document.getElementById('section-admin').scrollIntoView({behavior:'smooth'})}else{document.getElementById('login-modal').classList.add('active')}" class="w-full bg-hash-brown text-white py-2 rounded-lg hover:bg-yellow-900 transition shine-effect">Kelola Data</button>
+            <button onclick="if(isAdminLoggedIn()){document.getElementById('section-members').scrollIntoView({behavior:'smooth'})}else{document.getElementById('login-modal').classList.add('active')}" class="w-full bg-hash-brown text-white py-2 rounded-lg hover:bg-yellow-900 transition shine-effect">Kelola Data</button>
         </div>
     </section>
 
-    <!-- PUBLIC: Jadwal Run -->
+    <!-- PUBLIC: Run Terdekat (1 card, klik = detail besar + daftar) -->
     <section id="section-jadwal" class="bg-white p-6 rounded-xl shadow-lg mb-12">
         <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
             <i class="fas fa-calendar-alt"></i> Jadwal Run Minggu Ini
         </h3>
-        <div id="run-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <p class="text-gray-500 col-span-2 text-center py-8 animate-pulse">Memuat data jadwal...</p>
+        <div id="run-list-container" class="grid grid-cols-1 gap-4">
+            <p class="text-gray-500 text-center py-8 animate-pulse">Memuat jadwal...</p>
         </div>
     </section>
 
-    <!-- PUBLIC: Daftar Run -->
-    <section id="section-registrasi" class="bg-white p-6 rounded-xl shadow-lg mb-12">
+    <!-- PUBLIC: Jadwal Hare (semua run mendatang) -->
+    <section id="section-hare" class="bg-white p-6 rounded-xl shadow-lg mb-12">
         <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-            <i class="fas fa-user-plus"></i> Daftar Ikut Run
+            <i class="fas fa-calendar-days"></i> Jadwal Hare
         </h3>
-        <div class="max-w-md mx-auto">
-            <form id="form-run-registration" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Jadwal Run (terkunci otomatis)</label>
-                    <select id="run-select" class="w-full border border-gray-300 rounded-lg p-2.5 bg-gray-50 cursor-not-allowed" disabled>
-                        <option value="">Memuat jadwal...</option>
-                    </select>
-                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-lock mr-1"></i>Dikunci ke run terdekat.</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Peserta</label>
-                    <input type="text" id="reg-name" placeholder="Nama lengkap..." class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none" required>
-                </div>
-                <button type="submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect">
-                    <i class="fas fa-check-circle mr-2"></i>Konfirmasi Daftar
-                </button>
-            </form>
+        <p class="text-sm text-gray-500 mb-4">Semua hare terdaftar dengan tanggal mendatang. Klik untuk detail & daftar.</p>
+        <div id="hare-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <p class="text-gray-500 col-span-full text-center py-8">Memuat jadwal hare...</p>
         </div>
     </section>
 
     <!-- PUBLIC: Galeri -->
     <section id="section-galeri" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-        <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-            <i class="fas fa-images"></i> Galeri Kegiatan
-        </h3>
+        <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fas fa-images"></i> Galeri Kegiatan</h3>
         <div id="gallery-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <p class="text-gray-500 col-span-full text-center py-8">Memuat galeri...</p>
         </div>
@@ -199,45 +169,55 @@
 
     <!-- PUBLIC: Kamus -->
     <section id="section-kamus" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-        <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-            <i class="fas fa-book"></i> Kamus Hash
-        </h3>
-        <div id="kamus-container" class="max-w-none">
-            <p class="text-gray-500 text-center py-8">Memuat kamus...</p>
-        </div>
+        <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fas fa-book"></i> Kamus Hash</h3>
+        <div id="kamus-container"><p class="text-gray-500 text-center py-8">Memuat kamus...</p></div>
     </section>
 
-    <!-- ADMIN SECTIONS (hidden until login) -->
+    <!-- ================= ADMIN SECTIONS ================= -->
     <div id="admin-sections" class="hidden">
         <div class="mb-8 p-4 bg-gradient-to-r from-hash-green to-hash-brown rounded-xl text-white">
             <h3 class="text-2xl font-bold flex items-center gap-2"><i class="fas fa-shield-alt"></i> Panel Administrator</h3>
             <p class="text-green-200 text-sm mt-1">Anda login sebagai admin.</p>
         </div>
 
-        <!-- MANAJEMEN MEMBER (BARU - Req 1 Edit) -->
+        <!-- MANAJEMEN MEMBER -->
         <section id="section-members" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fas fa-users"></i> Manajemen Member
-            </h3>
-            <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 class="font-bold text-blue-800 mb-2"><i class="fas fa-file-excel mr-2"></i>Upload Excel</h4>
-                <p class="text-sm text-gray-600 mb-2">Kolom Excel: <strong>nama, hashname, phone, size, tanggal_lahir, type</strong></p>
-                <input type="file" id="excel-file-input" accept=".xlsx,.xls" class="hidden">
-                <button id="btn-upload-excel" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">
-                    <i class="fas fa-upload mr-2"></i>Upload
-                </button>
+            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fas fa-users"></i> Manajemen Member</h3>
+
+            <!-- Form input manual -->
+            <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                <h4 class="font-bold text-green-800 mb-3"><i class="fas fa-user-plus mr-2"></i>Input Member Manual</h4>
+                <form id="form-add-member" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" id="am-nama" placeholder="Nama *" class="border border-gray-300 rounded-lg p-2.5" required>
+                    <input type="text" id="am-hashname" placeholder="Hashname" class="border border-gray-300 rounded-lg p-2.5">
+                    <input type="text" id="am-phone" placeholder="No HP" class="border border-gray-300 rounded-lg p-2.5">
+                    <select id="am-size" class="border border-gray-300 rounded-lg p-2.5">
+                        <option value="S">S</option><option value="M">M</option><option value="L" selected>L</option>
+                        <option value="XL">XL</option><option value="XXL">XXL</option><option value="XXXL">XXXL</option>
+                    </select>
+                    <input type="date" id="am-tanggal_lahir" class="border border-gray-300 rounded-lg p-2.5">
+                    <select id="am-type" class="border border-gray-300 rounded-lg p-2.5">
+                        <option value="member">Member</option><option value="visitor">Visitor</option>
+                    </select>
+                    <button type="submit" class="md:col-span-3 bg-hash-green text-white py-2.5 rounded-lg font-bold hover:bg-green-800 transition shine-effect"><i class="fas fa-save mr-2"></i>Simpan Member</button>
+                </form>
             </div>
+
+            <!-- Upload Excel -->
+            <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 class="font-bold text-blue-800 mb-2"><i class="fas fa-file-excel mr-2"></i>Upload Excel (massal)</h4>
+                <p class="text-sm text-gray-600 mb-2">Kolom: <strong>nama, hashname, phone, size, tanggal_lahir, type</strong></p>
+                <input type="file" id="excel-file-input" accept=".xlsx,.xls" class="hidden">
+                <button id="btn-upload-excel" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md"><i class="fas fa-upload mr-2"></i>Upload</button>
+            </div>
+
+            <!-- Tabel member -->
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-hash-green text-white">
                         <tr>
-                            <th class="px-3 py-2">ID</th>
-                            <th class="px-3 py-2">Nama</th>
-                            <th class="px-3 py-2">Hashname</th>
-                            <th class="px-3 py-2">HP</th>
-                            <th class="px-3 py-2">Size</th>
-                            <th class="px-3 py-2">Hadir</th>
-                            <th class="px-3 py-2">Aksi</th>
+                            <th class="px-3 py-2">ID</th><th class="px-3 py-2">Nama</th><th class="px-3 py-2">Hashname</th>
+                            <th class="px-3 py-2">HP</th><th class="px-3 py-2">Size</th><th class="px-3 py-2">Hadir</th><th class="px-3 py-2">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="members-table-body">
@@ -247,11 +227,59 @@
             </div>
         </section>
 
-        <!-- PANEL DATA -->
+        <!-- KAS BANK -->
+        <section id="section-kas" class="bg-white p-6 rounded-xl shadow-lg mb-12">
+            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fas fa-money-bill-wave"></i> Kas Bank</h3>
+
+            <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+                    <p class="text-sm text-gray-600">Total Masuk</p>
+                    <p id="kas-total-masuk" class="text-xl font-bold text-green-700">Rp 0</p>
+                </div>
+                <div class="p-4 bg-red-50 rounded-lg border border-red-200 text-center">
+                    <p class="text-sm text-gray-600">Total Keluar</p>
+                    <p id="kas-total-keluar" class="text-xl font-bold text-red-700">Rp 0</p>
+                </div>
+                <div class="p-4 bg-amber-50 rounded-lg border border-amber-200 text-center">
+                    <p class="text-sm text-gray-600">Saldo</p>
+                    <p id="kas-saldo" class="text-xl font-bold text-amber-700">Rp 0</p>
+                </div>
+            </div>
+
+            <!-- Form tambah kas -->
+            <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-plus mr-2"></i>Tambah Transaksi</h4>
+                <form id="form-add-kas" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <select id="kas-tipe" class="border border-gray-300 rounded-lg p-2.5">
+                        <option value="masuk">Masuk</option><option value="keluar">Keluar</option>
+                    </select>
+                    <input type="text" id="kas-kategori" placeholder="Kategori (iuran/acara/ops)" class="border border-gray-300 rounded-lg p-2.5">
+                    <input type="text" id="kas-keterangan" placeholder="Keterangan *" class="border border-gray-300 rounded-lg p-2.5" required>
+                    <input type="number" id="kas-jumlah" placeholder="Jumlah (Rp) *" class="border border-gray-300 rounded-lg p-2.5" required min="1">
+                    <input type="date" id="kas-tanggal" class="border border-gray-300 rounded-lg p-2.5" required>
+                    <button type="submit" class="md:col-span-5 bg-hash-green text-white py-2.5 rounded-lg font-bold hover:bg-green-800 transition shine-effect"><i class="fas fa-save mr-2"></i>Simpan Transaksi</button>
+                </form>
+            </div>
+
+            <!-- Tabel kas -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-hash-green text-white">
+                        <tr>
+                            <th class="px-3 py-2">Tanggal</th><th class="px-3 py-2">Tipe</th><th class="px-3 py-2">Kategori</th>
+                            <th class="px-3 py-2">Keterangan</th><th class="px-3 py-2">Jumlah</th><th class="px-3 py-2">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kas-table-body">
+                        <tr><td colspan="6" class="text-center py-4 text-gray-500">Memuat...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- EXPORT -->
         <section id="section-admin" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-6 flex items-center gap-2">
-                <i class="fas fa-database"></i> Export Data
-            </h3>
+            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-6 flex items-center gap-2"><i class="fas fa-database"></i> Export Data</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="p-4 bg-green-50 rounded-lg border border-green-200">
                     <h4 class="font-bold text-green-800 mb-3"><i class="fas fa-users mr-2"></i>Database Member</h4>
@@ -272,9 +300,7 @@
 
         <!-- REKAP WA -->
         <section id="section-rekap" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fab fa-whatsapp"></i> Rekap WhatsApp
-            </h3>
+            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fab fa-whatsapp"></i> Rekap WhatsApp</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button id="btn-rekap-daftar" class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition"><i class="fas fa-list mr-2"></i>Rekap Daftar Run</button>
                 <button id="btn-rekap-hadir" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-user-check mr-2"></i>Rekap Hadir</button>
@@ -287,53 +313,64 @@
 
         <!-- ULTAH -->
         <section id="section-ultah" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fas fa-birthday-cake"></i> Ultah Bulan Ini
-            </h3>
-            <div id="ultah-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <p class="text-gray-500 col-span-2 text-center py-8">Memuat...</p>
-            </div>
+            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fas fa-birthday-cake"></i> Ultah Bulan Ini</h3>
+            <div id="ultah-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"><p class="text-gray-500 col-span-2 text-center py-8">Memuat...</p></div>
         </section>
 
         <!-- LOGS -->
         <section id="section-logs" class="bg-white p-6 rounded-xl shadow-lg mb-12">
-            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2">
-                <i class="fas fa-history"></i> Log Aktivitas
-            </h3>
+            <h3 class="text-2xl font-bold text-hash-green border-b pb-2 mb-4 flex items-center gap-2"><i class="fas fa-history"></i> Log Aktivitas</h3>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-hash-green text-white">
-                        <tr>
-                            <th class="px-3 py-2">Waktu</th>
-                            <th class="px-3 py-2">Aksi</th>
-                            <th class="px-3 py-2">Actor</th>
-                            <th class="px-3 py-2">Detail</th>
-                        </tr>
+                        <tr><th class="px-3 py-2">Waktu</th><th class="px-3 py-2">Aksi</th><th class="px-3 py-2">Actor</th><th class="px-3 py-2">Detail</th></tr>
                     </thead>
-                    <tbody id="logs-table-body">
-                        <tr><td colspan="4" class="text-center py-4 text-gray-500">Memuat...</td></tr>
-                    </tbody>
+                    <tbody id="logs-table-body"><tr><td colspan="4" class="text-center py-4 text-gray-500">Memuat...</td></tr></tbody>
                 </table>
             </div>
         </section>
     </div>
-
-    <!-- ID Card Preview (hidden) -->
-    <section id="section-idcard" class="hidden">
-        <div id="id-card-preview" class="w-[350px] h-[220px] bg-white border-2 border-hash-green rounded-xl overflow-hidden">
-            <div class="bg-hash-green h-16 flex items-center px-4">
-                <img src="logo.png" class="w-10 h-10 rounded-full border border-white mr-3">
-                <div><h4 class="text-white font-bold text-sm">HITMAN PEKANBARU</h4><p class="text-green-200 text-xs">Hashing Club</p></div>
-            </div>
-            <div class="p-4 flex gap-4">
-                <div class="w-24 h-28 bg-gray-200 rounded flex items-center justify-center"><i class="fas fa-user text-4xl text-gray-400"></i></div>
-                <div class="flex-1"><h5 id="idcard-name" class="font-bold text-lg text-hash-green">Nama</h5><p class="text-xs text-gray-500 mt-1">ID: -</p></div>
-            </div>
-        </div>
-    </section>
 </main>
 
-<!-- MODALS -->
+<!-- MODAL: DETAIL RUN (tampil besar + daftar) -->
+<div id="run-detail-modal" class="modal-overlay">
+    <div class="bg-white rounded-xl max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="relative">
+            <img id="rd-image" src="" alt="Run" class="w-full h-64 md:h-80 object-cover">
+            <button onclick="closeRunDetail()" class="absolute top-3 right-3 bg-black/60 text-white w-9 h-9 rounded-full text-xl hover:bg-black/80">&times;</button>
+            <span id="rd-badge" class="absolute top-3 left-3 bg-hash-amber text-white text-sm px-3 py-1 rounded-full">Run</span>
+        </div>
+        <div class="p-6">
+            <h3 id="rd-title" class="text-2xl font-bold text-hash-green mb-2"></h3>
+            <p id="rd-date" class="text-gray-700 mb-1"><i class="fas fa-calendar mr-2"></i></p>
+            <p id="rd-location" class="text-gray-700 mb-3"><i class="fas fa-map-marker-alt mr-2"></i></p>
+            <p id="rd-desc" class="text-gray-600 text-sm mb-5 whitespace-pre-wrap"></p>
+
+            <!-- Form daftar (single / rombongan) -->
+            <div id="rd-reg-wrap" class="border-t pt-4">
+                <h4 class="font-bold text-hash-green mb-3"><i class="fas fa-user-plus mr-2"></i>Daftar Ikut Run</h4>
+                <form id="form-run-registration" class="space-y-3">
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 text-sm"><input type="radio" name="rd-tipe" value="single" checked class="accent-green-700"> Satu Orang</label>
+                        <label class="flex items-center gap-2 text-sm"><input type="radio" name="rd-tipe" value="rombongan" class="accent-green-700"> Rombongan</label>
+                    </div>
+                    <div id="rd-single-wrap">
+                        <input type="text" id="rd-single-name" placeholder="Nama peserta..." class="w-full border border-gray-300 rounded-lg p-2.5">
+                    </div>
+                    <div id="rd-group-wrap" class="hidden">
+                        <textarea id="rd-group-names" rows="4" placeholder="Satu nama per baris...&#10;Contoh:&#10;Budi&#10;Siti&#10;Andi" class="w-full border border-gray-300 rounded-lg p-2.5"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect"><i class="fas fa-check-circle mr-2"></i>Konfirmasi Daftar</button>
+                </form>
+            </div>
+            <div id="rd-lock-note" class="hidden border-t pt-4 text-sm text-gray-500">
+                <i class="fas fa-lock mr-1"></i> Pendaftaran dikunci ke run terdekat. Lihat "Jadwal Run Minggu Ini".
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: SCANNER -->
 <div id="scanner-modal" class="modal-overlay">
     <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-4">
@@ -344,6 +381,7 @@
     </div>
 </div>
 
+<!-- MODAL: LIGHTBOX -->
 <div id="lightbox-modal" class="modal-overlay" onclick="closeLightbox(event)">
     <div class="relative max-w-4xl w-full mx-4">
         <button onclick="closeLightbox()" class="absolute -top-12 right-0 text-white text-3xl hover:text-red-400">&times;</button>
@@ -352,6 +390,7 @@
     </div>
 </div>
 
+<!-- MODAL: LOGIN -->
 <div id="login-modal" class="modal-overlay">
     <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl animate-slide-up">
         <div class="flex justify-between items-center mb-6">
@@ -359,23 +398,15 @@
             <button onclick="document.getElementById('login-modal').classList.remove('active')" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
         </div>
         <form id="form-login" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="login-email" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-hash-green focus:outline-none" required>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input type="password" id="login-password" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-hash-green focus:outline-none" required>
-            </div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="login-email" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-hash-green focus:outline-none" required></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Password</label><input type="password" id="login-password" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-hash-green focus:outline-none" required></div>
             <div id="login-error" class="hidden text-red-500 text-sm bg-red-50 p-3 rounded-lg"></div>
-            <button type="submit" id="btn-login-submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect">
-                <i class="fas fa-sign-in-alt mr-2"></i>Masuk
-            </button>
+            <button type="submit" id="btn-login-submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect"><i class="fas fa-sign-in-alt mr-2"></i>Masuk</button>
         </form>
     </div>
 </div>
 
-<!-- MODAL EDIT MEMBER (BARU) -->
+<!-- MODAL: EDIT MEMBER -->
 <div id="edit-member-modal" class="modal-overlay">
     <div class="bg-white rounded-xl p-8 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
@@ -384,51 +415,20 @@
         </div>
         <form id="form-edit-member" class="space-y-4">
             <input type="hidden" id="edit-member-id">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nama *</label>
-                <input type="text" id="edit-nama" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none" required>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Hashname</label>
-                <input type="text" id="edit-hashname" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none">
-            </div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama *</label><input type="text" id="edit-nama" class="w-full border border-gray-300 rounded-lg p-2.5" required></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Hashname</label><input type="text" id="edit-hashname" class="w-full border border-gray-300 rounded-lg p-2.5"></div>
             <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">No HP</label>
-                    <input type="text" id="edit-phone" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Size</label>
-                    <select id="edit-size" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none">
-                        <option value="S">S</option><option value="M">M</option><option value="L">L</option>
-                        <option value="XL">XL</option><option value="XXL">XXL</option><option value="XXXL">XXXL</option>
-                    </select>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">No HP</label><input type="text" id="edit-phone" class="w-full border border-gray-300 rounded-lg p-2.5"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                    <select id="edit-size" class="w-full border border-gray-300 rounded-lg p-2.5"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option></select>
                 </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
-                <input type="date" id="edit-tanggal_lahir" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none">
-            </div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label><input type="date" id="edit-tanggal_lahir" class="w-full border border-gray-300 rounded-lg p-2.5"></div>
             <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select id="edit-type" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none">
-                        <option value="member">Member</option>
-                        <option value="visitor">Visitor</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select id="edit-status" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-hash-green focus:outline-none">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="banned">Banned</option>
-                    </select>
-                </div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Type</label><select id="edit-type" class="w-full border border-gray-300 rounded-lg p-2.5"><option value="member">Member</option><option value="visitor">Visitor</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Status</label><select id="edit-status" class="w-full border border-gray-300 rounded-lg p-2.5"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             </div>
-            <button type="submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect">
-                <i class="fas fa-save mr-2"></i>Simpan Perubahan
-            </button>
+            <button type="submit" class="w-full bg-hash-green text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shine-effect"><i class="fas fa-save mr-2"></i>Simpan Perubahan</button>
         </form>
     </div>
 </div>
@@ -448,11 +448,19 @@
     </div>
 </footer>
 
-<script src="js/config.js?v=5"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/config.js?v=6"></script>
+<script src="js/app.js?v=6"></script>
 <script>
     document.getElementById('menu-toggle').addEventListener('click', function () {
         document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+    // Toggle single / rombongan
+    document.querySelectorAll('input[name="rd-tipe"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            var single = document.querySelector('input[name="rd-tipe"]:checked').value === 'single';
+            document.getElementById('rd-single-wrap').classList.toggle('hidden', !single);
+            document.getElementById('rd-group-wrap').classList.toggle('hidden', single);
+        });
     });
 </script>
 </body>
