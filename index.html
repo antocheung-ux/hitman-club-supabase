@@ -4,415 +4,432 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hitman Pekanbaru Hashing Club</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: { brand: {
+          dark:'#04150C', night:'#06231A', emerald:'#1B5E20', accent:'#2E7D32',
+          gold:'#F59E0B', goldlight:'#FCD34D', brown:'#5D4037', cream:'#FBF7EF', teal:'#8FC5CF'
+        }},
+        fontFamily: { display:['Rajdhani','sans-serif'], body:['Inter','sans-serif'] }
+      }}
+    };
+  </script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family:'Inter',sans-serif; background: radial-gradient(1100px 560px at 82% -10%, rgba(46,125,50,.14), transparent 60%), radial-gradient(900px 500px at -10% 30%, rgba(245,158,11,.08), transparent 55%), #04150C; min-height:100vh; }
+    h1,h2,h3,h4,.font-display { font-family:'Rajdhani',sans-serif; }
+    .hidden { display:none !important; }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes ticker { to { transform: translateX(-50%); } }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+    @keyframes spinGlow { to { transform:rotate(360deg); } }
+    @keyframes scanLine { 0%,100% { top:0; } 50% { top:calc(100% - 3px); } }
+    @keyframes shimmer { 0% { background-position:-800px 0; } 100% { background-position:800px 0; } }
+
+    .animate-fade-in-up { animation: fadeInUp .6s cubic-bezier(.22,1,.36,1) both; }
+    .animate-float { animation: float 4s ease-in-out infinite; }
+
+    /* Ticker marquee */
+    .ticker-track { display:flex; width:max-content; animation: ticker 26s linear infinite; }
+
+    /* Logo glow ring */
+    .logo-ring { position:relative; display:inline-block; }
+    .logo-ring::after { content:''; position:absolute; inset:-14px; border-radius:9999px; background:conic-gradient(from 0deg, transparent, rgba(245,158,11,.75), rgba(46,125,50,.6), transparent); filter:blur(14px); z-index:0; animation:spinGlow 7s linear infinite; }
+    .logo-ring > * { position:relative; z-index:1; }
+
+    /* Hero sporty */
+    .hero-sport { position:relative; overflow:hidden; background: radial-gradient(700px 320px at 85% 0%, rgba(46,125,50,.25), transparent 60%), radial-gradient(600px 300px at 5% 100%, rgba(245,158,11,.14), transparent 60%), linear-gradient(140deg,#06231A 0%,#0B3D1E 48%,#04150C 100%); }
+    .hero-grid { position:absolute; inset:0; background-image:linear-gradient(rgba(143,197,207,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(143,197,207,.07) 1px, transparent 1px); background-size:44px 44px; mask-image:radial-gradient(700px 480px at 50% 30%, #000 30%, transparent 78%); }
+    .hero-stripes { position:absolute; inset:0; opacity:.10; background:repeating-linear-gradient(115deg, transparent 0 26px, rgba(245,158,11,.55) 26px 30px); mix-blend-mode:screen; pointer-events:none; }
+
+    .text-grad-gold { background:linear-gradient(92deg,#FBF7EF 5%, #FCD34D 40%, #F59E0B 75%, #B45309 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+    .card-hover { transition:all .35s cubic-bezier(.22,1,.36,1); }
+    .card-hover:hover { transform:translateY(-5px); box-shadow:0 20px 40px -15px rgba(46,125,50,.45); border-color:rgba(245,158,11,.5); }
+
+    .btn-shine { position:relative; overflow:hidden; }
+    .btn-shine::after { content:''; position:absolute; top:0; left:-80%; width:50%; height:100%; background:linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); transform:skewX(-20deg); transition:left .55s ease; }
+    .btn-shine:hover::after { left:130%; }
+
+    /* Scanner */
+    #reader { position:relative; width:100%; min-height:260px; background:#000; border-radius:1rem; overflow:hidden; }
+    .scan-overlay { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:220px; height:220px; border:3px solid rgba(245,158,11,.85); border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,.4); pointer-events:none; z-index:5; }
+    .scan-line { position:absolute; left:0; right:0; height:3px; background:linear-gradient(90deg, transparent, #F59E0B, transparent); animation:scanLine 2s ease-in-out infinite; box-shadow:0 0 10px #F59E0B; }
+
+    /* Toast */
+    #toastContainer { position:fixed; top:1rem; right:1rem; z-index:9999; display:flex; flex-direction:column; gap:.5rem; width:320px; max-width:90vw; }
+    .toast { padding:.75rem 1rem; border-radius:.75rem; color:#fff; font-size:.75rem; font-weight:700; box-shadow:0 10px 25px -5px rgba(0,0,0,.4); animation:fadeInUp .3s ease-out; }
+    .toast.success { background:#1B5E20; } .toast.error { background:#BE123C; }
+    .toast.info { background:#1E3A8A; } .toast.warn { background:#B45309; }
+
+    ::-webkit-scrollbar { width:9px; height:9px; }
+    ::-webkit-scrollbar-track { background:#06231A; }
+    ::-webkit-scrollbar-thumb { background:linear-gradient(#2E7D32,#F59E0B); border-radius:8px; }
+
+    .admin-tab-btn { transition:all .2s ease; }
+    .admin-tab-btn.active { background:linear-gradient(135deg,#F59E0B,#D97706); color:#0F172A; font-weight:800; box-shadow:0 4px 14px rgba(245,158,11,.35); }
+    .admin-tab-btn:not(.active) { background:rgba(30,41,59,.8); color:#94A3B8; }
+    .admin-tab-btn:not(.active):hover { background:rgba(51,65,85,.85); color:#E2E8F0; }
+
+    .id-card { background:linear-gradient(135deg,#1B5E20 0%,#06231A 100%); border:2px solid rgba(245,158,11,.45); position:relative; overflow:hidden; }
+    .id-card::before { content:''; position:absolute; top:-50%; right:-50%; width:200%; height:200%; background:radial-gradient(circle, rgba(245,158,11,.12) 0%, transparent 70%); pointer-events:none; }
+
+    input[type="date"], input[type="month"] { color-scheme: dark; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="text-slate-100 font-body">
 
-  <div id="toastContainer" class="fixed top-4 right-4 z-[100] space-y-2 w-80 max-w-[90vw]"></div>
+<div id="toastContainer"></div>
 
-  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="font-black tracking-wide text-emerald-400 cursor-pointer" onclick="switchPage('home')">
-        HITMAN PEKANBARU HASHING CLUB
+<!-- TICKER MARQUEE -->
+<div class="overflow-hidden bg-gradient-to-r from-brand-emerald via-brand-night to-brand-emerald border-b border-amber-500/30">
+  <div class="ticker-track py-1.5 text-[10px] font-bold tracking-[0.25em] text-brand-goldlight uppercase whitespace-nowrap">
+    <span class="px-4">HIKE • HAPPY • HUMBLE • ON-ON! • EST. 2022 • HITMAN PEKANBARU HASHING CLUB • FUN • FITNESS • FRIENDSHIP •</span>
+    <span class="px-4">HIKE • HAPPY • HUMBLE • ON-ON! • EST. 2022 • HITMAN PEKANBARU HASHING CLUB • FUN • FITNESS • FRIENDSHIP •</span>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="bg-brand-dark/90 backdrop-blur-md border-b border-emerald-800/40 sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 flex justify-between items-center h-16 sm:h-20">
+    <div class="flex items-center space-x-3 cursor-pointer" onclick="switchPage('home')">
+      <img src="logo.png" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2296%22%3E%3Crect width=%2296%22 height=%2296%22 rx=%2248%22 fill=%22%231B5E20%22/%3E%3Ctext x=%2248%22 y=%2264%22 font-size=%2248%22 text-anchor=%22middle%22 fill=%22%23FCD34D%22 font-family=%22Arial%22 font-weight=%22bold%22%3EH%3C/text%3E%3C/svg%3E'" class="h-11 w-11 sm:h-14 sm:w-14 rounded-full object-contain bg-white p-0.5 border-2 border-brand-gold/60 shadow-lg">
+      <div>
+        <span class="font-display font-bold tracking-wide text-sm sm:text-lg text-white block leading-none">HITMAN PEKANBARU</span>
+        <span class="text-[9px] sm:text-[10px] tracking-[0.3em] text-brand-gold font-semibold block uppercase">Hashing Club • Est. 2022</span>
       </div>
-
-      <nav class="flex flex-wrap gap-2 text-xs font-bold">
-        <button onclick="switchPage('home')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Home</button>
-        <button onclick="switchPage('jadwal')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Jadwal</button>
-        <button onclick="switchPage('galeri')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Galeri</button>
-        <button onclick="switchPage('kamus')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Kamus</button>
-        <button onclick="switchPage('sejarah')" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Sejarah</button>
-        <button onclick="switchPage('admin')" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950">Admin</button>
-        <button id="logoutNavBtn" onclick="logoutAdmin()" class="hidden px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500">Logout</button>
-      </nav>
     </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-8">
-
-    <!-- HOME -->
-    <section id="page-home">
-      <div class="bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800 rounded-3xl p-10 text-center space-y-4">
-        <h1 class="text-3xl md:text-5xl font-black text-amber-400">HITMAN PEKANBARU HASHING CLUB</h1>
-        <p class="text-slate-300">Hike, Happy, Humble - On-On!</p>
-      </div>
-
-      <div class="mt-6 bg-slate-900 border border-slate-800 rounded-3xl p-6">
-        <h2 class="font-bold text-amber-400 mb-4">🏆 Papan Prestasi</h2>
-        <div id="prestasiList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm"></div>
-      </div>
-    </section>
-
-    <!-- JADWAL -->
-    <section id="page-jadwal" class="hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-        <h2 class="font-bold text-amber-400 text-xl">Jadwal Run Terdekat</h2>
-        <div id="featuredRun" class="text-sm text-slate-300">Memuat...</div>
-      </div>
-
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-        <h2 class="font-bold text-emerald-400 text-xl">Daftar Ikut Run</h2>
-
-        <div class="grid md:grid-cols-2 gap-3">
-          <select id="publicRunSelect" onchange="loadPublicRunRegs()" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></select>
-          <input id="publicRunName" placeholder="Nama lengkap / hash name" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-        </div>
-
-        <button onclick="submitPublicRunReg()" class="bg-emerald-700 hover:bg-emerald-600 px-4 py-3 rounded-xl font-bold text-sm">
-          Daftar Sekarang
-        </button>
-
-        <div>
-          <h3 class="font-bold text-slate-300 mb-2">Peserta Terdaftar</h3>
-          <div id="publicRunRegList" class="space-y-2 text-sm"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- GALERI -->
-    <section id="page-galeri" class="hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-        <h2 class="font-bold text-amber-400 text-xl">Galeri Foto</h2>
-
-        <div id="adminGalleryForm" class="hidden grid md:grid-cols-3 gap-3">
-          <input type="file" id="galleryFile" accept="image/*" class="bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm">
-          <input id="galleryCaption" placeholder="Caption" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-          <button onclick="uploadGallery()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Tambah Foto</button>
-        </div>
-
-        <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
-      </div>
-    </section>
-
-    <!-- KAMUS -->
-    <section id="page-kamus" class="hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-        <h2 class="font-bold text-amber-400 text-xl">Kamus Hash</h2>
-
-        <div id="adminKamusForm" class="hidden grid md:grid-cols-3 gap-3">
-          <input id="kamusTerm" placeholder="Istilah" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-          <input id="kamusDef" placeholder="Definisi" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-          <button onclick="addKamus()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Tambah</button>
-        </div>
-
-        <div id="kamusList" class="grid md:grid-cols-2 gap-3"></div>
-      </div>
-    </section>
-
-    <!-- SEJARAH -->
-    <section id="page-sejarah" class="hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-        <h2 class="font-bold text-amber-400 text-xl">Sejarah Klub</h2>
-
-        <div id="sejarahView" class="text-sm text-slate-300 whitespace-pre-line"></div>
-
-        <div id="sejarahEditWrap" class="hidden space-y-3">
-          <textarea id="sejarahEdit" rows="10" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></textarea>
-          <button onclick="saveSejarah()" class="bg-emerald-700 hover:bg-emerald-600 px-4 py-3 rounded-xl font-bold text-sm">Simpan Sejarah</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ADMIN -->
-    <section id="page-admin" class="hidden space-y-6">
-
-      <div id="adminAuth" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md mx-auto space-y-3">
-        <h2 class="font-bold text-amber-400 text-xl">Login Admin</h2>
-        <input id="adminEmail" type="email" placeholder="Email admin" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-        <input id="adminPassword" type="password" placeholder="Password" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-        <button onclick="loginAdmin()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl">Masuk</button>
-      </div>
-
-      <div id="adminDashboard" class="hidden space-y-6">
-
-        <div class="flex flex-wrap gap-2 text-xs font-bold">
-          <button onclick="switchAdminTab('member')" class="px-4 py-2 rounded-xl bg-slate-800">👤 Member</button>
-          <button onclick="switchAdminTab('iuran')" class="px-4 py-2 rounded-xl bg-slate-800">💳 Iuran</button>
-          <button onclick="switchAdminTab('kas')" class="px-4 py-2 rounded-xl bg-slate-800">💰 Kas</button>
-          <button onclick="switchAdminTab('hare')" class="px-4 py-2 rounded-xl bg-slate-800">🚩 Hare</button>
-          <button onclick="switchAdminTab('runreg')" class="px-4 py-2 rounded-xl bg-slate-800">🏃 Run Reg</button>
-          <button onclick="switchAdminTab('logs')" class="px-4 py-2 rounded-xl bg-slate-800">📜 Logs</button>
-          <button onclick="switchAdminTab('settings')" class="px-4 py-2 rounded-xl bg-slate-800">⚙️ Settings</button>
-        </div>
-
-        <!-- TAB MEMBER -->
-        <div id="tab-member" class="space-y-6">
-
-          <div class="grid lg:grid-cols-2 gap-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-              <h3 class="font-bold text-emerald-400">Scanner Absensi</h3>
-              <div id="reader" class="bg-black rounded-2xl min-h-[260px] flex items-center justify-center overflow-hidden"></div>
-              <div class="flex gap-2">
-                <button onclick="startScanner()" class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold text-sm">Start Camera</button>
-                <button onclick="stopScanner()" class="flex-1 bg-rose-600 hover:bg-rose-500 py-3 rounded-xl font-bold text-sm">Stop</button>
-              </div>
-              <div id="scanResult" class="text-sm font-bold"></div>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-              <h3 class="font-bold text-amber-400">Daftar Member / Visitor</h3>
-
-              <form onsubmit="handleRegister(event)" class="space-y-3 text-sm">
-                <select id="regType" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                  <option value="member">Member</option>
-                  <option value="visitor">Visitor</option>
-                </select>
-
-                <input id="regName" required placeholder="Nama lengkap" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <input id="regHash" placeholder="Hash name" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <input id="regPhone" placeholder="Nomor WA: 0812..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-
-                <select id="regSize" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                  <option>S</option>
-                  <option>M</option>
-                  <option selected>L</option>
-                  <option>XL</option>
-                  <option>XXL</option>
-                </select>
-
-                <input id="regPhoto" type="file" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2">
-
-                <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Simpan & Buat QR</button>
-              </form>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
-            <h3 class="font-bold text-slate-200 mb-4">Database Member & Visitor</h3>
-            <table class="w-full text-left text-xs min-w-[900px]">
-              <thead class="text-slate-400 uppercase">
-                <tr>
-                  <th class="p-2">Foto</th>
-                  <th class="p-2">ID</th>
-                  <th class="p-2">Nama</th>
-                  <th class="p-2">Hash</th>
-                  <th class="p-2">Tipe</th>
-                  <th class="p-2">WA</th>
-                  <th class="p-2">Status</th>
-                  <th class="p-2">Hadir</th>
-                  <th class="p-2">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="membersTable" class="divide-y divide-slate-800"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB IURAN -->
-        <div id="tab-iuran" class="hidden space-y-6">
-
-          <div class="grid lg:grid-cols-2 gap-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-              <h3 class="font-bold text-amber-400">Buat Periode Iuran</h3>
-              <form onsubmit="createPeriod(event)" class="space-y-3 text-sm">
-                <input id="periodMonth" type="month" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <input id="periodTarif" type="number" placeholder="Tarif, contoh 50000" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <input id="periodDue" type="date" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Buat Periode & Generate Tagihan</button>
-              </form>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-              <h3 class="font-bold text-emerald-400">Ajukan Pembayaran</h3>
-              <form onsubmit="submitPayment(event)" class="space-y-3 text-sm">
-                <select id="payMember" onchange="renderPayPeriodOptions()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"></select>
-                <select id="payPeriods" multiple size="6" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"></select>
-                <p class="text-[11px] text-slate-500">Tahan Ctrl / Cmd untuk pilih banyak bulan.</p>
-                <select id="payMethod" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                  <option>QRIS</option>
-                  <option>Transfer Bank</option>
-                  <option>Tunai</option>
-                </select>
-                <input id="payRef" placeholder="No referensi / bukti transfer (opsional)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <button class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-3 rounded-xl font-bold">Buat Payment Request</button>
-              </form>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
-            <h3 class="font-bold text-slate-200 mb-4">Tagihan Iuran</h3>
-            <table class="w-full text-left text-xs min-w-[900px]">
-              <thead class="text-slate-400 uppercase">
-                <tr>
-                  <th class="p-2">Periode</th>
-                  <th class="p-2">Member</th>
-                  <th class="p-2">Tagihan</th>
-                  <th class="p-2">Status</th>
-                  <th class="p-2">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="billsTable" class="divide-y divide-slate-800"></tbody>
-            </table>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
-            <h3 class="font-bold text-slate-200 mb-4">Verifikasi Pembayaran</h3>
-            <table class="w-full text-left text-xs min-w-[900px]">
-              <thead class="text-slate-400 uppercase">
-                <tr>
-                  <th class="p-2">Tanggal</th>
-                  <th class="p-2">Member</th>
-                  <th class="p-2">Total</th>
-                  <th class="p-2">Metode</th>
-                  <th class="p-2">Status</th>
-                  <th class="p-2">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="paymentsTable" class="divide-y divide-slate-800"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB KAS -->
-        <div id="tab-kas" class="hidden space-y-6">
-          <div class="grid lg:grid-cols-2 gap-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-              <h3 class="font-bold text-amber-400">Input Kas Manual</h3>
-              <form onsubmit="addKas(event)" class="space-y-3 text-sm">
-                <input id="kasDate" type="date" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <select id="kasTipe" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                  <option>Masuk</option>
-                  <option>Keluar</option>
-                </select>
-                <select id="kasKategori" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                  <option>iuran</option>
-                  <option>donasi</option>
-                  <option>acara</option>
-                  <option>konsumsi</option>
-                  <option>perlengkapan</option>
-                  <option>operasional</option>
-                  <option>lainnya</option>
-                </select>
-                <input id="kasKet" required placeholder="Keterangan" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <input id="kasJumlah" type="number" required placeholder="Jumlah" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
-                <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Simpan Kas</button>
-              </form>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6">
-              <h3 class="font-bold text-slate-200 mb-2">Total Saldo Kas</h3>
-              <div id="kasSaldo" class="text-3xl font-black text-emerald-400">Rp 0</div>
-            </div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
-            <h3 class="font-bold text-slate-200 mb-4">Riwayat Kas</h3>
-            <table class="w-full text-left text-xs min-w-[900px]">
-              <thead class="text-slate-400 uppercase">
-                <tr>
-                  <th class="p-2">Tanggal</th>
-                  <th class="p-2">Kategori</th>
-                  <th class="p-2">Keterangan</th>
-                  <th class="p-2">Tipe</th>
-                  <th class="p-2">Jumlah</th>
-                  <th class="p-2">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="kasTable" class="divide-y divide-slate-800"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB HARE -->
-        <div id="tab-hare" class="hidden space-y-6">
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-            <h3 class="font-bold text-amber-400">Tambah Hare / Run</h3>
-            <form onsubmit="addRun(event)" class="grid md:grid-cols-2 gap-3 text-sm">
-              <input id="runNumber" type="number" placeholder="Nomor run (opsional)" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-              <input id="runName" required placeholder="Nama hare" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-              <input id="runDate" type="date" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-              <input id="runLocation" placeholder="Lokasi" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
-              <input id="runDesc" placeholder="Deskripsi" class="bg-slate-950 border border-slate-700 rounded-xl p-3 md:col-span-2">
-              <input id="runPhoto" type="file" accept="image/*" class="bg-slate-950 border border-slate-700 rounded-xl p-2 md:col-span-2">
-              <button class="md:col-span-2 bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">Simpan Run</button>
-            </form>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
-            <h3 class="font-bold text-slate-200 mb-4">Daftar Run</h3>
-            <table class="w-full text-left text-xs min-w-[900px]">
-              <thead class="text-slate-400 uppercase">
-                <tr>
-                  <th class="p-2">Run</th>
-                  <th class="p-2">Nama</th>
-                  <th class="p-2">Tanggal</th>
-                  <th class="p-2">Lokasi</th>
-                  <th class="p-2">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="runsTable" class="divide-y divide-slate-800"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB RUN REG -->
-        <div id="tab-runreg" class="hidden space-y-6">
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-            <h3 class="font-bold text-amber-400">Pendaftaran Run</h3>
-
-            <div class="grid md:grid-cols-3 gap-3">
-              <select id="adminRunRecapSelect" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></select>
-              <input id="recapGroupNumber" placeholder="Nomor WA grup: 628..." class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
-              <button onclick="sendRunRegRecapWA()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">Kirim Rekap WA</button>
-            </div>
-
-            <div id="runRegsTable" class="space-y-2 text-sm"></div>
-          </div>
-        </div>
-
-        <!-- TAB LOGS -->
-        <div id="tab-logs" class="hidden space-y-6">
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-            <h3 class="font-bold text-amber-400">Scan Logs</h3>
-            <div id="scanLogs" class="text-xs space-y-2"></div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-            <h3 class="font-bold text-emerald-400">WA Logs</h3>
-            <div id="waLogs" class="text-xs space-y-2"></div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-            <h3 class="font-bold text-rose-400">Audit Logs</h3>
-            <div id="auditLogs" class="text-xs space-y-2"></div>
-          </div>
-        </div>
-
-        <!-- TAB SETTINGS -->
-        <div id="tab-settings" class="hidden space-y-6">
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
-            <h3 class="font-bold text-slate-200 mb-4">Pengaturan</h3>
-            <table class="w-full text-left text-xs min-w-[800px]">
-              <thead class="text-slate-400 uppercase">
-                <tr>
-                  <th class="p-2">Key</th>
-                  <th class="p-2">Value</th>
-                  <th class="p-2">Public</th>
-                  <th class="p-2">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="settingsTable" class="divide-y divide-slate-800"></tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-    </section>
-  </main>
-
-  <!-- QR MODAL -->
-  <div id="qrModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[90] p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-sm text-center space-y-4">
-      <h3 id="qrTitle" class="font-bold text-amber-400"></h3>
-      <div id="qrBox" class="bg-white p-4 rounded-2xl w-52 h-52 mx-auto flex items-center justify-center"></div>
-      <button onclick="closeQrModal()" class="w-full bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold">Tutup</button>
+    <nav class="hidden lg:flex items-center space-x-1 text-xs font-semibold">
+      <button onclick="switchPage('home')" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-emerald-950/60 transition">🏠 Home</button>
+      <button onclick="switchPage('jadwal')" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-emerald-950/60 transition">📅 Jadwal</button>
+      <button onclick="switchPage('galeri')" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-emerald-950/60 transition">📸 Galeri</button>
+      <button onclick="switchPage('kamus')" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-emerald-950/60 transition">📚 Kamus</button>
+      <button onclick="switchPage('sejarah')" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-emerald-950/60 transition">📜 Sejarah</button>
+    </nav>
+    <div class="flex items-center space-x-2">
+      <button onclick="switchPage('admin')" class="btn-shine bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-4 py-2 rounded-xl text-xs font-bold shadow-lg">⚙️ Admin</button>
+      <button id="logoutNavBtn" onclick="logoutAdmin()" class="hidden bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow">Logout</button>
     </div>
   </div>
+</header>
 
-  <script src="js/config.js"></script>
-  <script src="js/app.js"></script>
+<main class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-6 space-y-8">
+
+  <!-- HOME -->
+  <section id="page-home" class="page-content animate-fade-in-up">
+    <div class="hero-sport rounded-3xl border border-emerald-700/40 shadow-2xl min-h-[70vh] flex items-center justify-center p-6 sm:p-12">
+      <div class="hero-grid"></div><div class="hero-stripes"></div>
+      <div class="relative z-10 text-center space-y-6 max-w-4xl mx-auto">
+        <div class="logo-ring animate-float inline-block">
+          <img src="logo.png" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect width=%22200%22 height=%22200%22 rx=%22100%22 fill=%22%231B5E20%22/%3E%3Ctext x=%22100%22 y=%22130%22 font-size=%22100%22 text-anchor=%22middle%22 fill=%22%23FCD34D%22 font-family=%22Arial%22 font-weight=%22bold%22%3EH%3C/text%3E%3C/svg%3E'" class="h-36 w-36 sm:h-48 sm:w-48 rounded-full object-contain bg-white p-2 border-4 border-brand-gold/60 shadow-2xl">
+        </div>
+        <div class="inline-flex items-center gap-2 bg-emerald-900/70 text-emerald-300 text-xs font-bold tracking-widest px-4 py-1.5 rounded-full uppercase border border-emerald-500/40">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> FUN • FITNESS • FRIENDSHIP
+        </div>
+        <h1 class="font-display font-bold italic text-4xl sm:text-6xl lg:text-7xl text-grad-gold leading-none">HITMAN PEKANBARU<br>HASHING CLUB</h1>
+        <p class="text-slate-300 max-w-xl mx-auto">HIKE • HAPPY • HUMBLE — Wadah lari lintas alam dan persaudaraan tanpa batas.</p>
+        <div class="flex flex-wrap gap-3 justify-center pt-2">
+          <button onclick="switchPage('jadwal')" class="btn-shine bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold px-6 py-3 rounded-xl shadow-lg">📅 Lihat Jadwal</button>
+          <button onclick="switchPage('galeri')" class="btn-shine bg-brand-brown/80 hover:bg-brand-brown border border-amber-500/40 text-brand-cream font-bold px-6 py-3 rounded-xl">📸 Galeri</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center card-hover"><div class="text-3xl font-black text-emerald-400" id="stat-members">0</div><div class="text-xs text-slate-400 uppercase tracking-wider mt-1">Member Aktif</div></div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center card-hover"><div class="text-3xl font-black text-amber-400" id="stat-visitors">0</div><div class="text-xs text-slate-400 uppercase tracking-wider mt-1">Total Visitor</div></div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center card-hover"><div class="text-3xl font-black text-sky-400" id="stat-runs">0</div><div class="text-xs text-slate-400 uppercase tracking-wider mt-1">Run Terlaksana</div></div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center card-hover"><div class="text-3xl font-black text-rose-400" id="stat-photos">0</div><div class="text-xs text-slate-400 uppercase tracking-wider mt-1">Foto Galeri</div></div>
+    </div>
+
+    <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 mt-6">
+      <h2 class="font-display font-bold text-amber-400 mb-4 text-xl">🏆 Papan Prestasi</h2>
+      <div id="prestasiList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm"></div>
+    </div>
+  </section>
+
+  <!-- JADWAL -->
+  <section id="page-jadwal" class="page-content hidden space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6"><h2 class="font-display font-bold text-2xl text-brand-gold mb-4">📅 Jadwal Run Terdekat</h2><div id="featuredRun" class="text-sm text-slate-300">Memuat...</div></div>
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+      <h2 class="font-display font-bold text-xl text-emerald-400">🏃 Daftar Ikut Run</h2>
+      <div class="flex bg-slate-950 border border-slate-700 rounded-xl p-1 gap-1">
+        <button type="button" onclick="setRunRegMode('single')" id="runRegModeSingleBtn" class="flex-1 py-2 rounded-lg font-bold text-xs bg-emerald-700 text-white">👤 Satu Orang</button>
+        <button type="button" onclick="setRunRegMode('multi')" id="runRegModeMultiBtn" class="flex-1 py-2 rounded-lg font-bold text-xs text-slate-400">👥 Rombongan</button>
+      </div>
+      <div class="grid md:grid-cols-2 gap-3">
+        <select id="publicRunSelect" onchange="loadPublicRunRegs()" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></select>
+        <div id="runRegSingleWrap"><input id="publicRunName" placeholder="Nama lengkap / hash name" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></div>
+        <div id="runRegMultiWrap" class="hidden md:col-span-2"><textarea id="publicRunNameList" rows="4" placeholder="Satu nama per baris (rombongan)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></textarea></div>
+      </div>
+      <button onclick="submitPublicRunReg()" class="btn-shine w-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 rounded-xl font-bold text-sm shadow-lg">✅ Daftar Sekarang</button>
+      <div><h3 class="font-bold text-slate-300 mb-2">Peserta Terdaftar</h3><div id="publicRunRegList" class="space-y-2 text-sm max-h-64 overflow-y-auto"></div></div>
+    </div>
+  </section>
+
+  <!-- GALERI -->
+  <section id="page-galeri" class="page-content hidden space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+      <h2 class="font-display font-bold text-2xl text-brand-gold mb-4">📸 Galeri Foto</h2>
+      <div id="adminGalleryForm" class="hidden grid md:grid-cols-3 gap-3 mb-4">
+        <input type="file" id="galleryFile" accept="image/*" class="bg-slate-950 border border-slate-700 rounded-xl p-2 text-sm">
+        <input id="galleryCaption" placeholder="Caption" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+        <button onclick="uploadGallery()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">➕ Tambah</button>
+      </div>
+      <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+    </div>
+  </section>
+
+  <!-- KAMUS -->
+  <section id="page-kamus" class="page-content hidden space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+      <h2 class="font-display font-bold text-2xl text-brand-gold mb-4">📚 Kamus Hash</h2>
+      <div id="adminKamusForm" class="hidden grid md:grid-cols-3 gap-3 mb-4">
+        <input id="kamusTerm" placeholder="Istilah" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+        <input id="kamusDef" placeholder="Definisi" class="bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+        <button onclick="addKamus()" class="bg-emerald-700 hover:bg-emerald-600 rounded-xl font-bold text-sm">➕ Tambah</button>
+      </div>
+      <div id="kamusList" class="grid md:grid-cols-2 gap-3"></div>
+    </div>
+  </section>
+
+  <!-- SEJARAH -->
+  <section id="page-sejarah" class="page-content hidden space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6">
+      <h2 class="font-display font-bold text-2xl text-brand-gold mb-4">📜 Sejarah Klub</h2>
+      <div id="sejarahView" class="text-sm text-slate-300 whitespace-pre-line"></div>
+      <div id="sejarahEditWrap" class="hidden space-y-3 mt-4">
+        <textarea id="sejarahEdit" rows="10" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></textarea>
+        <button onclick="saveSejarah()" class="bg-emerald-700 hover:bg-emerald-600 px-4 py-3 rounded-xl font-bold text-sm">💾 Simpan</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="page-admin" class="page-content hidden space-y-6">
+    <div id="adminAuth" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md mx-auto space-y-4">
+      <img src="logo.png" class="h-16 w-16 rounded-full object-contain bg-white p-1 border-2 border-brand-gold/60 mx-auto">
+      <h2 class="font-display font-bold text-2xl text-brand-gold text-center">🔐 Login Admin</h2>
+      <input id="adminEmail" type="email" placeholder="Email admin" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+      <input id="adminPassword" type="password" placeholder="Password" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+      <button onclick="loginAdmin()" class="btn-shine w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold py-3 rounded-xl shadow-lg">Masuk</button>
+    </div>
+
+    <div id="adminDashboard" class="hidden space-y-6">
+      <div class="flex items-center justify-between bg-gradient-to-r from-emerald-900/40 to-slate-900 border border-emerald-800/40 rounded-2xl p-4">
+        <div><div class="text-xs text-emerald-400 uppercase tracking-wider">Mode Admin Aktif</div><div class="font-bold text-white" id="adminEmailDisplay">-</div></div>
+        <span class="bg-amber-500/20 text-brand-gold border border-brand-gold/40 text-xs font-bold px-3 py-1 rounded-full">ADMIN</span>
+      </div>
+
+      <div class="flex flex-wrap gap-2 text-xs font-bold">
+        <button onclick="switchAdminTab('member')" class="admin-tab-btn active px-4 py-2 rounded-xl" data-tab="member">👤 Member</button>
+        <button onclick="switchAdminTab('iuran')" class="admin-tab-btn px-4 py-2 rounded-xl" data-tab="iuran">💳 Iuran</button>
+        <button onclick="switchAdminTab('kas')" class="admin-tab-btn px-4 py-2 rounded-xl" data-tab="kas">💰 Kas</button>
+        <button onclick="switchAdminTab('hare')" class="admin-tab-btn px-4 py-2 rounded-xl" data-tab="hare">🚩 Hare</button>
+        <button onclick="switchAdminTab('runreg')" class="admin-tab-btn px-4 py-2 rounded-xl" data-tab="runreg">🏃 Run Reg</button>
+        <button onclick="switchAdminTab('birthday')" class="admin-tab-btn px-4 py-2 rounded-xl" data-tab="birthday">🎂 Ultah</button>
+        <button onclick="switchAdminTab('logs')" class="admin-tab-btn px-4 py-2 rounded-xl" data-tab="logs">📜 Logs</button>
+      </div>
+
+      <!-- MEMBER -->
+      <div id="tab-member" class="space-y-6">
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <h3 class="font-display font-bold text-emerald-400 text-lg">📷 Scanner Absensi</h3>
+            <div id="reader" class="bg-black rounded-2xl min-h-[260px] flex items-center justify-center overflow-hidden"></div>
+            <div class="flex gap-2">
+              <button onclick="startScanner()" class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold text-sm">▶ Start</button>
+              <button onclick="stopScanner()" class="flex-1 bg-rose-600 hover:bg-rose-500 py-3 rounded-xl font-bold text-sm">⏹ Stop</button>
+            </div>
+            <div id="scanResult" class="text-sm font-bold"></div>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-display font-bold text-brand-gold text-lg">📝 Daftar Hasher Baru</h3>
+            <form onsubmit="handleRegister(event)" class="space-y-3 text-sm">
+              <select id="regType" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"><option value="member">👤 Member</option><option value="visitor">🚶 Visitor</option></select>
+              <input id="regName" required placeholder="Nama lengkap" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="regHash" placeholder="Hash name" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="regPhone" placeholder="No. WA: 0812..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <div class="grid grid-cols-2 gap-2">
+                <select id="regSize" class="bg-slate-950 border border-slate-700 rounded-xl p-3"><option>S</option><option>M</option><option selected>L</option><option>XL</option><option>XXL</option></select>
+                <input id="regBirthdate" type="date" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+              </div>
+              <input id="regPhoto" type="file" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2">
+              <button class="btn-shine w-full bg-gradient-to-r from-emerald-600 to-emerald-500 py-3 rounded-xl font-bold shadow-lg">🪪 Buat ID & Simpan</button>
+            </form>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto">
+          <h3 class="font-display font-bold text-lg mb-4">📊 Database Member & Visitor</h3>
+          <table class="w-full text-left text-xs min-w-[900px]">
+            <thead class="text-slate-400 uppercase border-b border-slate-800"><tr><th class="p-2">Foto</th><th class="p-2">Nama</th><th class="p-2">Hash</th><th class="p-2">Tipe</th><th class="p-2">Ultah</th><th class="p-2">Status</th><th class="p-2">Hadir</th><th class="p-2">Aksi</th></tr></thead>
+            <tbody id="membersTable" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- IURAN -->
+      <div id="tab-iuran" class="hidden space-y-6">
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-display font-bold text-brand-gold text-lg">⚡ Generate Tagihan Otomatis</h3>
+            <p class="text-xs text-slate-400">Membuat periode & tagihan bulan berjalan untuk semua member aktif.</p>
+            <button onclick="autoGenerateBills()" class="btn-shine w-full bg-gradient-to-r from-emerald-600 to-emerald-500 py-3 rounded-xl font-bold">🚀 Generate Bulan Ini</button>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-display font-bold text-emerald-400 text-lg">💳 Ajukan Pembayaran</h3>
+            <form onsubmit="submitPayment(event)" class="space-y-3 text-sm">
+              <select id="payMember" onchange="renderPayPeriodOptions()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"></select>
+              <select id="payPeriods" multiple size="5" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"></select>
+              <select id="payMethod" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"><option>QRIS</option><option>Transfer Bank</option><option>Tunai</option></select>
+              <button class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-3 rounded-xl font-bold">Buat Payment Request</button>
+            </form>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto"><h3 class="font-display font-bold text-lg mb-4">📋 Tagihan Iuran</h3>
+          <table class="w-full text-left text-xs min-w-[900px]"><thead class="text-slate-400 uppercase border-b border-slate-800"><tr><th class="p-2">Periode</th><th class="p-2">Member</th><th class="p-2">Tagihan</th><th class="p-2">Status</th><th class="p-2">Aksi</th></tr></thead><tbody id="billsTable" class="divide-y divide-slate-800"></tbody></table>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto"><h3 class="font-display font-bold text-lg mb-4">✅ Verifikasi Pembayaran</h3>
+          <table class="w-full text-left text-xs min-w-[900px]"><thead class="text-slate-400 uppercase border-b border-slate-800"><tr><th class="p-2">Tanggal</th><th class="p-2">Member</th><th class="p-2">Total</th><th class="p-2">Metode</th><th class="p-2">Status</th><th class="p-2">Aksi</th></tr></thead><tbody id="paymentsTable" class="divide-y divide-slate-800"></tbody></table>
+        </div>
+      </div>
+
+      <!-- KAS -->
+      <div id="tab-kas" class="hidden space-y-6">
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-display font-bold text-brand-gold text-lg">➕ Input Kas</h3>
+            <form onsubmit="addKas(event)" class="space-y-3 text-sm">
+              <input id="kasDate" type="date" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <select id="kasTipe" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"><option>Masuk</option><option>Keluar</option></select>
+              <select id="kasKategori" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3"><option>iuran</option><option>donasi</option><option>acara</option><option>konsumsi</option><option>operasional</option><option>lainnya</option></select>
+              <input id="kasKet" required placeholder="Keterangan" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <input id="kasJumlah" type="number" required placeholder="Jumlah" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3">
+              <button class="w-full bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">💾 Simpan</button>
+            </form>
+          </div>
+          <div class="bg-gradient-to-br from-emerald-900/40 to-slate-900 border border-emerald-800/40 rounded-3xl p-6 flex flex-col justify-center">
+            <div class="text-xs uppercase tracking-wider text-emerald-400 font-bold">Total Saldo Kas</div>
+            <div id="kasSaldo" class="text-4xl font-black text-white mt-2">Rp 0</div>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto"><h3 class="font-display font-bold text-lg mb-4">📖 Riwayat Kas</h3>
+          <table class="w-full text-left text-xs min-w-[900px]"><thead class="text-slate-400 uppercase border-b border-slate-800"><tr><th class="p-2">Tanggal</th><th class="p-2">Kategori</th><th class="p-2">Keterangan</th><th class="p-2">Tipe</th><th class="p-2">Jumlah</th><th class="p-2">Aksi</th></tr></thead><tbody id="kasTable" class="divide-y divide-slate-800"></tbody></table>
+        </div>
+      </div>
+
+      <!-- HARE -->
+      <div id="tab-hare" class="hidden space-y-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+          <h3 class="font-display font-bold text-brand-gold text-lg" id="hareFormTitle">🚩 Tambah Hare / Run</h3>
+          <form onsubmit="addRun(event)" class="grid md:grid-cols-2 gap-3 text-sm">
+            <input type="hidden" id="runEditId">
+            <input id="runNumber" type="number" placeholder="Nomor run (opsional)" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+            <input id="runName" required placeholder="Nama hare" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+            <input id="runDate" type="date" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+            <input id="runLocation" placeholder="Lokasi" class="bg-slate-950 border border-slate-700 rounded-xl p-3">
+            <input id="runDesc" placeholder="Deskripsi" class="bg-slate-950 border border-slate-700 rounded-xl p-3 md:col-span-2">
+            <input id="runPhoto" type="file" accept="image/*" class="bg-slate-950 border border-slate-700 rounded-xl p-2 md:col-span-2">
+            <div class="flex gap-2 md:col-span-2">
+              <button type="submit" id="btnSubmitRun" class="flex-1 bg-emerald-700 hover:bg-emerald-600 py-3 rounded-xl font-bold">➕ Simpan Run</button>
+              <button type="button" onclick="cancelEditRun()" id="btnCancelEditRun" class="hidden bg-slate-700 hover:bg-slate-600 py-3 px-4 rounded-xl font-bold">Batal</button>
+            </div>
+          </form>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 overflow-x-auto"><h3 class="font-display font-bold text-lg mb-4">Daftar Run</h3>
+          <table class="w-full text-left text-xs min-w-[900px]"><thead class="text-slate-400 uppercase border-b border-slate-800"><tr><th class="p-2">Run</th><th class="p-2">Nama</th><th class="p-2">Tanggal</th><th class="p-2">Lokasi</th><th class="p-2">Aksi</th></tr></thead><tbody id="runsTable" class="divide-y divide-slate-800"></tbody></table>
+        </div>
+      </div>
+
+      <!-- RUN REG + REKAP WA -->
+      <div id="tab-runreg" class="hidden space-y-6">
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-display font-bold text-brand-gold text-lg">📤 Rekap Peserta Daftar → WA</h3>
+            <select id="adminRunRecapSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm"></select>
+            <input id="recapGroupNumber" placeholder="Nomor WA grup: 628..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+            <button onclick="sendRunRegRecapWA()" class="btn-shine w-full bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-xl font-bold text-sm py-3">📤 Kirim Rekap Daftar</button>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
+            <h3 class="font-display font-bold text-brand-gold text-lg">📤 Rekap Kehadiran → WA</h3>
+            <input id="recapDateAdmin" type="date" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm">
+            <button onclick="sendAttendanceRecapWA()" class="btn-shine w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 rounded-xl font-bold text-sm py-3">📤 Kirim Rekap Hadir</button>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6"><h3 class="font-display font-bold text-lg mb-4">Pendaftaran Run</h3><div id="runRegsTable" class="space-y-2 text-sm"></div></div>
+      </div>
+
+      <!-- BIRTHDAY -->
+      <div id="tab-birthday" class="hidden space-y-6">
+        <div class="bg-gradient-to-br from-pink-900/30 to-slate-900 border border-pink-800/40 rounded-3xl p-6">
+          <h3 class="font-display font-bold text-2xl text-pink-400 mb-4">🎂 Ulang Tahun Hari Ini</h3>
+          <div id="birthdayList" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div id="tab-logs" class="hidden space-y-6">
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6"><h3 class="font-display font-bold text-emerald-400 mb-3">📷 Scan Logs</h3><div id="scanLogs" class="text-xs space-y-2 max-h-96 overflow-y-auto"></div></div>
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6"><h3 class="font-display font-bold text-brand-gold mb-3">💬 WA Logs</h3><div id="waLogs" class="text-xs space-y-2 max-h-96 overflow-y-auto"></div></div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6"><h3 class="font-display font-bold text-rose-400 mb-3">🛡️ Audit Logs</h3><div id="auditLogs" class="text-xs space-y-2 max-h-96 overflow-y-auto"></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ID CARD MODAL -->
+<div id="qrModal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[90] p-4">
+  <div class="bg-slate-900 border border-brand-gold/60 rounded-3xl p-6 w-full max-w-sm space-y-4">
+    <div id="memberCard" class="id-card rounded-2xl p-5 text-white relative">
+      <div class="flex justify-between items-start mb-3">
+        <div><p class="text-[9px] uppercase tracking-widest text-emerald-300 font-semibold">Hitman Pekanbaru Hashing Club</p><h4 id="cardTypeLabel" class="text-xs font-bold text-amber-300 tracking-wider">ID Member Digital</h4></div>
+        <img src="logo.png" class="h-10 w-10 rounded-full object-contain bg-white p-0.5 border border-amber-400/60">
+      </div>
+      <div class="text-center my-3">
+        <div class="w-20 h-20 mx-auto mb-2 rounded-full overflow-hidden border-2 border-amber-400 bg-slate-800 flex items-center justify-center">
+          <img id="cardPhoto" src="" alt="" class="w-full h-full object-cover hidden"><span id="cardPhotoPlaceholder" class="text-3xl">👤</span>
+        </div>
+        <h4 id="cardName" class="text-base font-extrabold tracking-wide">-</h4>
+        <p id="cardHash" class="text-xs text-emerald-200 italic mt-0.5">-</p>
+        <p id="cardId" class="text-[10px] text-emerald-300 font-mono mt-1">ID: -</p>
+        <p id="cardInfo" class="text-[10px] text-emerald-200 mt-1">-</p>
+      </div>
+      <div class="bg-white p-2 rounded-xl w-32 h-32 mx-auto flex items-center justify-center shadow-inner"><div id="qrBox"></div></div>
+      <p class="text-[9px] text-center text-emerald-300 mt-2">Tunjukkan QR Code saat absensi run.</p>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="downloadCard()" class="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold py-3 rounded-xl shadow-lg">📥 Download</button>
+      <button onclick="closeQrModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- GALLERY MODAL -->
+<div id="galleryModal" class="fixed inset-0 bg-black/95 backdrop-blur-md hidden items-center justify-center z-[90] p-4" onclick="closeGalleryModal()">
+  <img id="galleryModalImg" src="" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl">
+  <button class="absolute top-4 right-4 bg-rose-600 hover:bg-rose-500 w-10 h-10 rounded-full font-bold text-xl">✕</button>
+</div>
+
+<footer class="bg-brand-dark border-t border-emerald-900/50 text-slate-400 text-center py-8 text-xs mt-8 space-y-3">
+  <img src="logo.png" class="h-16 w-16 rounded-full object-contain bg-white p-1 border-2 border-brand-gold/50 mx-auto">
+  <p class="font-display font-bold text-white tracking-widest text-base">HITMAN PEKANBARU HASHING CLUB</p>
+  <p>Hike, Happy, Humble - On-On!</p>
+  <p class="text-[10px] text-slate-600">&copy; 2026 All rights reserved.</p>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
